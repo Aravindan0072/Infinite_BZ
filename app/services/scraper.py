@@ -1,125 +1,136 @@
-import os
-import re
-import requests
-import time
-from datetime import datetime
+import asyncio
+import random
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from dotenv import load_dotenv
+import urllib.parse
 
-load_dotenv()
-API_TOKEN = os.getenv("EVENTBRITE_TOKEN")
+# --- CONSTANTS ---
+BASE_URL = "https://www.eventbrite.com"
 
-# --- PART 1: THE HIJACKER (Connects to Open Chrome) ---
-def get_scraper_driver():
+async def scrape_events_playwright(city: str = "chennai", category: str = "business--events") -> List[Dict]:
     """
-    Connects to the EXISTING Chrome window running on port 9222.
+    Scrapes Eventbrite for events in a specific city and category using Playwright.
+    Returns a list of dictionaries matching the database schema.
     """
-    print("🔌 Connecting to your open Chrome window...")
-    chrome_options = Options()
-    # This tells Selenium: "Don't open a new window, talk to the one on port 9222"
-    chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+    cleaned_events = []
     
-    driver = webdriver.Chrome(options=chrome_options)
-    return driver
-
-def extract_ids_from_search(city: str = "chennai"):
-    driver = None
-    found_ids = set()
+    # Construct Search URL
+    # Example: https://www.eventbrite.com/d/india--chennai/business--events/
+    # Ensure city is URL-safe
+    encoded_city = urllib.parse.quote(city)
+    search_url = f"{BASE_URL}/d/india--{encoded_city}/{category}/"
     
-    try:
-        driver = get_scraper_driver()
+    print(f"🕵️‍♀️ Scraper: Starting Playwright session for {search_url}...")
+
+    async with async_playwright() as p:
+        # Launch browser (headless=True for background, False for debug)
+        browser = await p.chromium.launch(headless=True)
         
-        # --- UPGRADE 1: FORCE NAVIGATION TO "ALL EVENTS" ---
-        # We explicitly go to the URL that shows EVERYTHING (no date filters)
-        target_url = f"https://www.eventbrite.com/d/india--{city}/events/"
-        
-        # Only navigate if we aren't already there to save time
-        if target_url not in driver.current_url:
-            print(f"🚀 Navigating to ALL EVENTS page: {target_url}")
-            driver.get(target_url)
-            time.sleep(3) # Give it a second to load
-        
-        print("⬇️  Starting DEEP SCROLL (20 pages)...")
-        
-        # --- UPGRADE 2: SCROLL 20 TIMES ---
-        # This will load approx 150-200 events
-        for i in range(20):
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2) # Wait for new cards to appear
-            print(f"   PLEASE WAIT... Scrolling {i+1}/20")
-        
-        # Scrape the HTML from your open window
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        links = soup.select("a[href*='/e/']")
-        
-        for link in links:
-            href = link['href']
-            match = re.search(r'(\d{10,})', href)
-            if match:
-                found_ids.add(match.group(1))
-                
-        print(f"🎯 Found {len(found_ids)} unique Event IDs from your active session.")
-        
-    except Exception as e:
-        print(f"❌ Hijack Error: {e}")
-        print("💡 Did you run the chrome.exe command in Step 2?")
-    
-    # IMPORTANT: Do NOT quit the driver, or it will close your manual window!
-    # driver.quit() 
+        # Create a context with user-agent to avoid immediate bot detection
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = await context.new_page()
+
+        try:
+            await page.goto(search_url, timeout=60000)
             
-    return list(found_ids)
-
-# --- PART 2: THE BRAIN (API Request) ---
-def fetch_and_filter_event(event_id: str):
-    url = f"https://www.eventbriteapi.com/v3/events/{event_id}/"
-    headers = {"Authorization": f"Bearer {API_TOKEN}"}
-    params = {
-        "expand": "venue,organizer,category,subcategory,format,logo,ticket_availability" 
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            return None
+            # Wait for event cards to load
+            await page.wait_for_selector("div.event-card__details, section.event-card-details", timeout=15000)
             
-        data = response.json()
+            # Scroll a bit to load more (lazy loading)
+            for _ in range(3):
+                await page.evaluate("window.scrollBy(0, 1000)")
+                await asyncio.sleep(random.uniform(1, 3))
+
+            # HTML Parsing with BeautifulSoup
+            content = await page.content()
+            soup = BeautifulSoup(content, "html.parser")
+            
+            # Eventbrite's classes change often, so we try multiple common selectors
+            # Currently: section.event-card-details is common for search results
+            cards = soup.select("section.event-card-details, div.event-card__details")
+            
+            print(f"🔎 Found {len(cards)} raw cards. Parsing...")
+
+            for card in cards:
+                try:
+                    # 1. Title
+                    title_tag = card.select_one("h3, h2, .event-card__title")
+                    title = title_tag.get_text(strip=True) if title_tag else "Untitled Event"
+                    
+                    # 2. Link & ID
+                    link_tag = card.select_one("a.event-card-link, a")
+                    url = link_tag['href'] if link_tag else ""
+                    if url.startswith("/"):
+                        url = BASE_URL + url
+                    
+                    # Extract ID from URL (e.g., .../e/my-event-1234567?aff=...)
+                    # Fallback to random if not found (just for safety, usually present)
+                    event_id = "unknown"
+                    if "/e/" in url:
+                        # simple extraction
+                        parts = url.split("-")
+                        last_part = parts[-1].split("?")[0]
+                        if last_part.isdigit():
+                            event_id = last_part
+                    
+                    if not event_id or event_id == "unknown":
+                         continue # Skip invalid ones
+
+                    # 3. Date
+                    # Date is often in a specific format like "Tue, Dec 26, 7:00 PM"
+                    date_tag = card.select_one("p:first-of-type, .event-card__date")
+                    date_str = date_tag.get_text(strip=True) if date_tag else None
+                    
+                    # Parse Date (Simplified for MVP - uses current time + heuristic or raw string)
+                    # For a robust app, use `dateparser` library
+                    start_time = datetime.now() # Fallback
+                    
+                    # 4. Image
+                    # Usually in a separate container, might be hard to get from 'card' element if strict hierarchy isn't preserved in finding.
+                    # We often need to look at the parent 'article' or 'div' for the image
+                    # For now, let's assume no image or try finding img tag
+                    img_tag = card.find_previous("img") # This is risky, but works if structure is linear
+                    image_url = img_tag['src'] if img_tag else None
+
+                    # 5. Price
+                    price_tag = card.select_one(".event-card__price")
+                    is_free = False
+                    if price_tag and "free" in price_tag.get_text().lower():
+                        is_free = True
+
+                    # 6. Location
+                    location = city # Default
+                    
+                    cleaned_events.append({
+                        "eventbrite_id": event_id,
+                        "title": title,
+                        "description": f"Scraped from {url}",
+                        "start_time": start_time, # Needs proper parsing in v2
+                        "end_time": start_time + timedelta(hours=2),
+                        "url": url,
+                        "image_url": image_url,
+                        "venue_name": location,
+                        "is_free": is_free,
+                        "raw_data": {"original_date": date_str}
+                    })
+
+                except Exception as e:
+                    print(f"⚠️ Error parsing card: {e}")
+                    continue
+
+        except Exception as e:
+            print(f"❌ Scraper Error: {e}")
         
-        # --- UPGRADE 3: SHOW SKIPPED EVENTS ---
-        if not data.get("is_free"):
-            # We print this so you see the script is working, even if it doesn't save
-            print(f"💰 Skipping Paid Event: {data.get('name', {}).get('text')[:30]}...") 
-            return None 
+        finally:
+            await browser.close()
             
-        return {
-            "eventbrite_id": event_id,
-            "title": data.get("name", {}).get("text"),
-            "description": data.get("description", {}).get("text"),
-            "start_time": datetime.fromisoformat(data["start"]["local"]),
-            "end_time": datetime.fromisoformat(data["end"]["local"]),
-            "url": data.get("url"),
-            "image_url": data.get("logo", {}).get("url") if data.get("logo") else None,
-            "venue_name": data.get("venue", {}).get("name") if data.get("venue") else "Online",
-            "is_free": True,
-            "raw_data": data 
-        }
+    print(f"✅ Scraper finished. Parsed {len(cleaned_events)} events.")
+    return cleaned_events
 
-    except Exception:
-        return None
-
-# --- PART 3: THE CONTROLLER ---
+# Wrapper for synchronous calls if needed (though FastAPI handles async well)
 def scrape_and_process_events(city: str):
-    # 1. Hijack browser to get IDs
-    ids = extract_ids_from_search(city)
-    clean_events = []
-    
-    # 2. Use API for details
-    print(f"⚡ Processing {len(ids)} IDs via API...")
-    for eid in ids:
-        time.sleep(0.1) 
-        event_data = fetch_and_filter_event(eid)
-        if event_data:
-            clean_events.append(event_data)
-            
-    return clean_events
+    return asyncio.run(scrape_events_playwright(city))

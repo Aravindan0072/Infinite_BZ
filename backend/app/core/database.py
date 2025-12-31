@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 # Correct connection string using your new 'python_user'
-DATABASE_URL = "postgresql+asyncpg://python_user:55555@localhost/event_hub_db"
 
+DATABASE_URL = "postgresql+asyncpg://postgres:12345@localhost:5432/events_hub"
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 async def init_db():

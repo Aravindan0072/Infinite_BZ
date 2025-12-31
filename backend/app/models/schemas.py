@@ -19,7 +19,10 @@ class Event(SQLModel, table=True):
     url: str
     image_url: Optional[str] = None
     venue_name: Optional[str] = None
+    venue_address: Optional[str] = None
+    organizer_name: Optional[str] = None
     is_free: bool = Field(default=True)
+    online_event: bool = Field(default=False)
     
     # --- NEW: The JSON Dump Column ---
     # This uses PostgreSQL's JSONB type for efficient storage
@@ -32,3 +35,30 @@ class UserRegistration(SQLModel, table=True):
     event_id: int = Field(foreign_key="event.id")
     user_email: str
     registered_at: datetime = Field(default_factory=datetime.now)
+
+# --- User Authentication Models ---
+
+class UserBase(SQLModel):
+    email: str = Field(unique=True, index=True)
+    full_name: Optional[str] = None
+    is_active: bool = Field(default=True)
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    hashed_password: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserRead(UserBase):
+    id: int
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str
+
+class TokenData(SQLModel):
+    email: Optional[str] = None
+
+class GoogleToken(SQLModel):
+    token: str
