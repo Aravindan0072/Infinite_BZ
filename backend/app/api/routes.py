@@ -39,12 +39,17 @@ async def sync_events(city: str = "chennai", session: AsyncSession = Depends(get
     return {"status": "success", "added": saved_count, "total_found": len(events_data)}
 
 # --- 2. PUBLIC EVENTS API ---
-from sqlalchemy import func
+from sqlalchemy import func, select, or_, desc, cast, Date
+from datetime import datetime, date as date_type
 @router.get("/events", response_model=EventListResponse) # Changed response model
 async def list_events(
     city: str = None, 
     category: str = None, 
     search: str = None,
+    source: str = None,
+    is_free: str = None, # 'true', 'false', or None
+    mode: str = None,    # 'online', 'offline', or None
+    date: str = None,    # 'YYYY-MM-DD'
     page: int = 1,
     limit: int = 10,
     session: AsyncSession = Depends(get_session)
@@ -59,9 +64,33 @@ async def list_events(
     # Base query for filtering
     filter_query = select(Event)
     
+    # 0. Category/Industry Filter (Keyword Search)
+    if category and category.lower() != "all":
+        # Broaden logic: Map category names to a list of related keywords
+        keyword_map = {
+            "startup": ["startup", "founder", "entrepreneur", "venture", "pitch", "funding", "incubator", "accelerator", "innovation"],
+            "business": ["business", "networking", "marketing", "sales", "finance", "leadership", "management", "corporate", "career", "resume", "job", "interview", "workshop", "money", "income", "profit", "ecommerce", "trade", "expo", "exhibition", "organization", "team", "strategy", "communication"],
+            "tech": ["tech", "software", "developer", "ai", "data", "code", "programming", "cloud", "security", "web", "digital", "cyber", "electronics", "engineering"],
+            "music": ["music", "concert", "live", "dj", "band", "festival", "performance"],
+            "sports": ["sport", "cricket", "football", "run", "marathon", "yoga", "fitness", "badminton"],
+            "arts": ["art", "design", "creative", "gallery", "painting"]
+        }
+        
+        # Get keywords for the selected category (default to just the category name if not in map)
+        search_keywords = keyword_map.get(category.lower(), [category.lower()])
+        
+        # Construct OR query for all keywords in Title OR Description
+        conditions = []
+        for kw in search_keywords:
+            kw_term = f"%{kw}%"
+            conditions.append(Event.title.ilike(kw_term))
+            conditions.append(Event.description.ilike(kw_term))
+            
+        filter_query = filter_query.where(or_(*conditions))
+        
     # 1. City Filter
-    if city:
-        filter_query = filter_query.where(Event.venue_name.ilike(f"%{city}%"))
+    if city and city.lower() != "all":
+        filter_query = filter_query.where(Event.venue_address.ilike(f"%{city}%"))
         
     # 2. Search Filter (Title, Desc, Venue, Organizer)
     if search:
@@ -75,6 +104,34 @@ async def list_events(
                 Event.organizer_name.ilike(search_term)
             )
         )
+        
+    # 3. Source Filter (Platform)
+    if source and source.strip().lower() != "all":
+        # Check URL for the source name (e.g. 'eventbrite', 'meetup')
+        filter_query = filter_query.where(Event.url.ilike(f"%{source.strip()}%"))
+        # Add more sources here if needed
+        
+    # 4. Cost Filter
+    if is_free:
+        if is_free.lower() == "free":
+            filter_query = filter_query.where(Event.is_free == True)
+        elif is_free.lower() == "paid":
+            filter_query = filter_query.where(Event.is_free == False)
+            
+    # 5. Mode Filter
+    if mode:
+        if mode.lower() == "online":
+            filter_query = filter_query.where(Event.online_event == True)
+        elif mode.lower() == "offline":
+            filter_query = filter_query.where(Event.online_event == False)
+    
+    # 6. Date Filter
+    if date:
+        try:
+            filter_date = datetime.strptime(date, "%Y-%m-%d").date()
+            filter_query = filter_query.where(cast(Event.start_time, Date) == filter_date)
+        except ValueError:
+            pass # Ignore invalid date formats
     
     # 3. Get TOTAL Count (Count BEFORE applying limit/offset)
     # We substitute the selection of 'Event' with 'count(Event.id)'
@@ -86,8 +143,8 @@ async def list_events(
     
     # Re-constructing count query cleanly:
     count_stmt = select(func.count()).select_from(Event)
-    if city:
-        count_stmt = count_stmt.where(Event.venue_name.ilike(f"%{city}%"))
+    if city and city.lower() != "all":
+        count_stmt = count_stmt.where(Event.venue_address.ilike(f"%{city}%"))
     if search:
         search_term = f"%{search}%"
         count_stmt = count_stmt.where(
@@ -99,6 +156,48 @@ async def list_events(
                 Event.organizer_name.ilike(search_term)
             )
         )
+
+    # Apply same filters to count_stmt
+    if category and category.lower() != "all":
+        keyword_map = {
+            "startup": ["startup", "founder", "entrepreneur", "venture", "pitch", "funding", "incubator", "accelerator", "innovation"],
+            "business": ["business", "networking", "marketing", "sales", "finance", "leadership", "management", "corporate", "career", "resume", "job", "interview", "workshop", "money", "income", "profit", "ecommerce", "trade", "expo", "exhibition", "organization", "team", "strategy", "communication"],
+            "tech": ["tech", "software", "developer", "ai", "data", "code", "programming", "cloud", "security", "web", "digital", "cyber", "electronics", "engineering"],
+            "music": ["music", "concert", "live", "dj", "band", "festival", "performance"],
+            "sports": ["sport", "cricket", "football", "run", "marathon", "yoga", "fitness", "badminton"],
+            "arts": ["art", "design", "creative", "gallery", "painting"]
+        }
+        search_keywords = keyword_map.get(category.lower(), [category.lower()])
+        
+        conditions = []
+        for kw in search_keywords:
+            kw_term = f"%{kw}%"
+            conditions.append(Event.title.ilike(kw_term))
+            conditions.append(Event.description.ilike(kw_term))
+            
+        count_stmt = count_stmt.where(or_(*conditions))
+        
+    if source and source.strip().lower() != "all":
+        count_stmt = count_stmt.where(Event.url.ilike(f"%{source.strip()}%"))
+
+    if is_free:
+        if is_free.lower() == "free":
+            count_stmt = count_stmt.where(Event.is_free == True)
+        elif is_free.lower() == "paid":
+            count_stmt = count_stmt.where(Event.is_free == False)
+
+    if mode:
+        if mode.lower() == "online":
+            count_stmt = count_stmt.where(Event.online_event == True)
+        elif mode.lower() == "offline":
+            count_stmt = count_stmt.where(Event.online_event == False)
+
+    if date:
+        try:
+            filter_date = datetime.strptime(date, "%Y-%m-%d").date()
+            count_stmt = count_stmt.where(cast(Event.start_time, Date) == filter_date)
+        except ValueError:
+            pass
 
     count_result = await session.execute(count_stmt)
     total_events = count_result.scalar()
@@ -131,3 +230,62 @@ async def track_click(registration: UserRegistration, session: AsyncSession = De
     await session.commit()
     await session.refresh(registration)
     return {"status": "tracked", "id": registration.id}
+
+# --- 4. AUTO-REGISTRATION ENDPOINT ---
+from app.models.schemas import UserRegistration, User
+from app.services.registrar import auto_register_playwright
+from app.auth import get_current_user
+
+@router.post("/events/{event_id}/register")
+async def register_for_event(
+    event_id: int, 
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    # 1. Get Event Details
+    event = await session.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if not event.is_free:
+         raise HTTPException(status_code=400, detail="Auto-registration currently supports FREE events only.")
+
+    # 2. Check if already registered
+    stmt = select(UserRegistration).where(
+        UserRegistration.user_email == current_user.email,
+        UserRegistration.event_id == event_id
+    )
+    result = await session.execute(stmt)
+    existing = result.scalars().first()
+    if existing:
+        return {"status": "ALREADY_REGISTERED", "message": "You are already registered for this event."}
+
+    # 3. Trigger Automation (Run in background or await?)
+    # For better UX, we await it here so user gets immediate result, 
+    # but for production queues are better. We await for MVP validity.
+    
+    # Split name
+    parts = (current_user.full_name or "Guest User").split(" ")
+    first_name = parts[0]
+    last_name = parts[-1] if len(parts) > 1 else "."
+
+    registration_result = await auto_register_playwright(
+        event.url, 
+        first_name, 
+        last_name, 
+        current_user.email
+    )
+
+    if registration_result["status"] == "SUCCESS":
+        # Save to DB
+        new_reg = UserRegistration(
+            event_id=event_id, 
+            user_email=current_user.email,
+            confirmation_id=registration_result["confirmation_id"],
+            status="SUCCESS"
+        )
+        session.add(new_reg)
+        await session.commit()
+        return {"status": "SUCCESS", "message": "Registration successful!", "confirmation_id": registration_result["confirmation_id"]}
+    else:
+        return {"status": "FAILED", "message": registration_result.get("error", "Unknown error")}

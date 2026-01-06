@@ -4,6 +4,7 @@ import {
     TrendingUp, AlertCircle, CheckCircle2, MoreHorizontal,
     Search, Bell, Plus, Download, MessageSquare, ClipboardList, X
 } from 'lucide-react';
+import CityDropdown from './CityDropdown';
 
 export default function Dashboard({ user, onLogout }) {
     const [stats, setStats] = useState({
@@ -23,14 +24,21 @@ export default function Dashboard({ user, onLogout }) {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState(""); // Track input
     const [activeSearch, setActiveSearch] = useState(""); // Track triggered search
+    const [selectedCity, setSelectedCity] = useState("Chennai");
+    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [selectedSource, setSelectedSource] = useState("All");
+    const [selectedCost, setSelectedCost] = useState("All");
+    const [selectedMode, setSelectedMode] = useState("All");
+    const [selectedDate, setSelectedDate] = useState(""); // YYYY-MM-DD
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
 
     useEffect(() => {
         fetchDashboardStats();
     }, []);
 
     useEffect(() => {
-        fetchEvents(currentPage, activeSearch);
-    }, [currentPage, activeSearch]);
+        fetchEvents(currentPage, activeSearch, selectedCity, selectedCategory, selectedSource, selectedCost, selectedMode, selectedDate);
+    }, [currentPage, activeSearch, selectedCity, selectedCategory, selectedSource, selectedCost, selectedMode, selectedDate]);
 
     const fetchDashboardStats = async () => {
         try {
@@ -47,14 +55,20 @@ export default function Dashboard({ user, onLogout }) {
         }
     };
 
-    const fetchEvents = async (page, search = "") => {
+    const fetchEvents = async (page, search = "", city = "Chennai", category = "All", source = "All", cost = "All", mode = "All", date = "") => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
             // Construct Query Params
             const params = new URLSearchParams({
                 page: page,
-                limit: 10
+                limit: 10,
+                city: city === "All Cities" ? "all" : city,
+                category: category === "All" ? "all" : category,
+                source: source === "All" ? "all" : source,
+                is_free: cost === "All" ? "" : cost.toLowerCase(),
+                mode: mode === "All" ? "" : (mode === "In Person" ? "offline" : mode.toLowerCase()),
+                date: date
             });
             if (search && search.trim() !== "") {
                 params.append('search', search.trim());
@@ -103,6 +117,25 @@ export default function Dashboard({ user, onLogout }) {
         }
     };
 
+    const handleRegister = async (eventId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://localhost:8000/api/v1/events/${eventId}/register`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'SUCCESS') {
+                alert(`Successfully Registered! Ticket ID: ${data.confirmation_id}`);
+            } else {
+                alert(`Registration Failed: ${data.message}`);
+            }
+        } catch (err) {
+            console.error("Registration error", err);
+            alert("An error occurred during registration.");
+        }
+    };
+
     const handleSearch = (e) => {
         if (e.key === 'Enter') {
             setCurrentPage(1);
@@ -143,7 +176,7 @@ export default function Dashboard({ user, onLogout }) {
 
                 <div className="p-4">
                     <button className="w-full py-3 bg-gold-500 hover:bg-gold-600 text-sky-700 rounded-lg font-bold transition-colors shadow-lg shadow-gold-500/30">
-                        Add New Source
+                        + Create Event
                     </button>
                     <button onClick={onLogout} className="flex items-center gap-3 px-4 py-3 w-full text-white/70 hover:text-white mt-4 transition-colors">
                         <LogOut size={18} />
@@ -163,7 +196,7 @@ export default function Dashboard({ user, onLogout }) {
                             <input
                                 type="text"
                                 placeholder="Search events, venues..."
-                                className="bg-white border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-sky-500 w-64"
+                                className="bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-gold-500 w-64 placeholder:text-slate-500"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearch}
@@ -173,8 +206,41 @@ export default function Dashboard({ user, onLogout }) {
                             <Bell size={20} />
                             <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
                         </button>
-                        <div className="w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center text-white font-bold">
-                            {user?.full_name?.[0] || 'A'}
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                                className="w-8 h-8 bg-orange-400 rounded-full flex items-center justify-center text-white font-bold hover:ring-2 hover:ring-white/20 transition-all"
+                            >
+                                {user?.full_name?.[0] || 'A'}
+                            </button>
+
+                            {showProfileMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowProfileMenu(false)} />
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-slate-800 rounded-xl shadow-xl border border-slate-700 py-2 z-20 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="px-4 py-3 border-b border-slate-700 mb-1">
+                                            <p className="text-sm font-bold text-white">{user?.full_name || 'Admin User'}</p>
+                                            <p className="text-xs text-slate-500 truncate">{user?.email || 'user@example.com'}</p>
+                                        </div>
+
+                                        <button className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 transition-colors">
+                                            <Users size={16} /> My Profile
+                                        </button>
+                                        <button className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 transition-colors">
+                                            <Settings size={16} /> Settings
+                                        </button>
+
+                                        <div className="h-px bg-slate-100 my-1" />
+
+                                        <button
+                                            onClick={onLogout}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                        >
+                                            <LogOut size={16} /> Sign Out
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -215,14 +281,40 @@ export default function Dashboard({ user, onLogout }) {
 
                     {/* Filter Bar */}
                     <div className="flex flex-wrap gap-3 mb-8">
-                        <FilterBtn label="City: Chennai" />
-                        <FilterBtn label="Industry: Startup" />
-                        <FilterBtn label="Source: All" />
-                        <FilterBtn label="Cost: Free" active />
-                        <FilterBtn label="Audience: Founders" />
-                        <button className="ml-auto flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
-                            <Calendar size={16} /> This Week
-                        </button>
+                        <CityDropdown selected={selectedCity} onChange={setSelectedCity} />
+                        <FilterDropdown
+                            label="Industry"
+                            options={["All", "Startup", "Business", "Sports", "Tech", "Music"]}
+                            selected={selectedCategory}
+                            onChange={setSelectedCategory}
+                        />
+                        <FilterDropdown
+                            label="Source"
+                            options={["All", "Eventbrite", "Meetup"]}
+                            selected={selectedSource}
+                            onChange={setSelectedSource}
+                        />
+                        <FilterDropdown
+                            label="Cost"
+                            options={["All", "Free", "Paid"]}
+                            selected={selectedCost}
+                            onChange={setSelectedCost}
+                        />
+                        <FilterDropdown
+                            label="Mode"
+                            options={["All", "Online", "In Person"]}
+                            selected={selectedMode}
+                            onChange={setSelectedMode}
+                        />
+                        <div className="ml-auto relative">
+                            <input
+                                type="date"
+                                className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 focus:outline-none focus:border-sky-500 hover:bg-slate-50 cursor-pointer"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                            />
+                            <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                        </div>
                     </div>
 
                     {/* HEADERS */}
@@ -235,18 +327,18 @@ export default function Dashboard({ user, onLogout }) {
                     </div>
 
                     {/* EVENTS LIST */}
+                    {/* EVENTS LIST */}
                     <div className="space-y-4">
-                        {loading ? (
-                            <div className="text-center py-10 text-slate-500">Loading events...</div>
-                        ) : (
-                            <>
-                                {eventsData.data?.map((event) => (
-                                    <EventCard key={event.id} event={event} />
-                                ))}
-                                {(!eventsData.data || eventsData.data.length === 0) && (
-                                    <div className="text-center py-10 text-slate-500">No events found matching criteria.</div>
-                                )}
-                            </>
+                        {loading && <div className="text-center py-10 text-slate-500">Loading events...</div>}
+
+                        {!loading && eventsData.data && eventsData.data.length > 0 && (
+                            eventsData.data.map((event) => (
+                                <EventCard key={event.id} event={event} onRegister={() => handleRegister(event.id)} />
+                            ))
+                        )}
+
+                        {!loading && (!eventsData.data || eventsData.data.length === 0) && (
+                            <div className="text-center py-10 text-slate-500">No events found matching criteria.</div>
                         )}
                     </div>
 
@@ -305,94 +397,139 @@ function NavItem({ icon, label, active }) {
 
 function StatCard({ title, value, subtext, subtextColor, icon }) {
     return (
-        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-slate-50 rounded-xl">
-                    {icon}
-                </div>
+        <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl flex items-start justify-between hover:border-gold-500/30 transition-colors">
+            <div>
+                <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
+                <h3 className="text-2xl font-bold text-white mb-1">{value}</h3>
+                <p className={`text-xs ${subtextColor}`}>{subtext}</p>
             </div>
-            <h3 className="text-3xl font-bold text-slate-800 mb-1">{value}</h3>
-            <p className="text-sm text-slate-500 font-medium mb-2">{title}</p>
-            {subtext && (
-                <p className={`text-xs font-semibold ${subtextColor}`}>{subtext}</p>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${icon.props.className?.includes('text-gold') ? 'bg-gold-500/10 text-gold-500' : 'bg-slate-700 text-slate-400'}`}>
+                {icon}
+            </div>
+        </div>
+    );
+}
+
+function FilterDropdown({ label, options, selected, onChange }) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${selected !== 'All'
+                    ? 'bg-sky-50 border-sky-200 text-sky-600'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+            >
+                {label}: {selected}
+                <span className="text-[10px] opacity-50">▼</span>
+            </button>
+
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+                    <div className="absolute top-full mt-2 left-0 w-40 bg-white border border-slate-200 shadow-xl rounded-lg overflow-hidden z-20">
+                        {options.map((option) => (
+                            <button
+                                key={option}
+                                onClick={() => {
+                                    onChange(option);
+                                    setIsOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${selected === option ? 'bg-sky-50 text-sky-600 font-semibold' : 'text-slate-600'}`}
+                            >
+                                {option}
+                            </button>
+                        ))}
+                    </div>
+                </>
             )}
         </div>
     )
 }
 
-function FilterBtn({ label, active }) {
-    return (
-        <button className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${active
-            ? 'bg-sky-50 border-sky-200 text-sky-600'
-            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}>
-            {label}
-            {active && <span className="text-lg leading-none">×</span>}
-            {!active && <span className="text-[10px] opacity-50">▼</span>}
-        </button>
-    )
-}
+function EventCard({ event, onRegister }) {
+    const [registering, setRegistering] = useState(false);
+    const [registered, setRegistered] = useState(false);
 
-function EventCard({ event }) {
-    const date = new Date(event.start_time);
-    const day = date.getDate();
-    const month = date.toLocaleString('default', { month: 'short' }).toUpperCase();
+    const handleClick = async () => {
+        if (event.is_free && event.url.includes("eventbrite")) {
+            setRegistering(true);
+            await onRegister();
+            setRegistering(false);
+            setRegistered(true); // Optimistic update
+        } else {
+            window.open(event.url, '_blank');
+        }
+    };
 
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 grid grid-cols-1 lg:grid-cols-12 gap-y-4 lg:gap-x-4 items-center hover:shadow-md transition-all">
-            {/* DATE BLOCK - Col 1 */}
-            <div className="lg:col-span-1 flex justify-center lg:justify-start">
-                <div className="w-16 h-16 lg:w-full lg:h-20 bg-slate-50 rounded-xl flex flex-col items-center justify-center border border-slate-100">
-                    <span className="text-xs font-bold text-red-500 uppercase">{month}</span>
-                    <span className="text-2xl font-bold text-slate-800">{day}</span>
+        <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-800 border border-slate-700 rounded-xl items-center hover:shadow-md transition-shadow hover:shadow-gold-500/10">
+            {/* Date Block - col-span-1 */}
+            <div className="col-span-1 flex justify-center">
+                <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-700 flex flex-col items-center justify-center text-center">
+                    <span className="text-xs font-bold text-red-500 uppercase">
+                        {new Date(event.start_time).toLocaleString('default', { month: 'short' })}
+                    </span>
+                    <span className="text-xl font-bold text-white">
+                        {new Date(event.start_time).getDate()}
+                    </span>
                 </div>
             </div>
 
-            {/* DETAILS - Col 5 */}
-            <div className="lg:col-span-5 text-center lg:text-left">
-                <div className="flex items-center justify-center lg:justify-start gap-2 mb-2">
-                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md ${event.is_free ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                        {event.is_free ? 'FREE' : 'PAID'}
+            {/* Content - col-span-5 */}
+            <div className="col-span-5 min-w-0 pr-4">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${event.is_free ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
+                        {event.is_free ? 'Free' : 'Paid'}
                     </span>
-                    <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md ${event.online_event ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'}`}>
-                        {event.online_event ? '🌐 ONLINE' : '📍 IN PERSON'}
+                    <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1">
+                        {event.online_event ? 'Online' : 'In Person'}
                     </span>
                 </div>
-                <h4 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{event.title}</h4>
-                <p className="text-sm text-slate-500 flex items-center justify-center lg:justify-start gap-1">
-                    By <span className="text-sky-600 font-medium">{event.organizer_name || 'Event Organizer'}</span>
-                    <span className="mx-1">•</span>
-                    {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <h3 className="text-base font-bold text-white truncate mb-1" title={event.title}>
+                    {event.title}
+                </h3>
+                <p className="text-xs text-slate-500 truncate mb-2">
+                    <span className="text-sky-400 font-medium">By {event.organizer_name || "Unknown"}</span> • {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
             </div>
 
-            {/* LOCATION - Col 3 */}
-            <div className="lg:col-span-3 text-center lg:text-left">
-                <h5 className="font-bold text-slate-800 text-sm mb-1">{event.venue_name || 'TBD'}</h5>
-                <p className="text-xs text-slate-500 truncate" title={event.venue_address}>{event.venue_address || 'Chennai, India'}</p>
+            {/* Location - col-span-3 */}
+            <div className="col-span-3 text-xs text-slate-500 hidden md:block">
+                <p className="font-semibold text-slate-300 truncate mb-0.5">
+                    {event.venue_name || (event.online_event ? "Online Event" : "TBD")}
+                </p>
+                <p className="truncate text-slate-400">
+                    {event.venue_address || (event.online_event ? "Link sent upon registration" : "Chennai, India")}
+                </p>
             </div>
 
-            {/* SOURCE - Col 2 */}
-            <div className="lg:col-span-2 flex justify-center lg:justify-start items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
-                    {event.url && event.url.includes('eventbrite') ? 'EB' : 'O'}
+            {/* Source - col-span-2 */}
+            <div className="col-span-2 hidden lg:flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-orange-500">
+                    EB
                 </div>
-                <span className="text-sm font-medium text-slate-600">
-                    {event.url && event.url.includes('eventbrite') ? 'Eventbrite' : 'Other'}
-                </span>
+                <span className="text-xs font-medium text-orange-400">Eventbrite</span>
             </div>
 
-            {/* ACTION - Col 1 */}
-            <div className="lg:col-span-1 flex justify-center lg:justify-end">
-                <a
-                    href={event.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block px-4 py-2 bg-gold-500 hover:bg-gold-600 text-sky-700 rounded-lg font-bold text-sm transition-colors shadow-lg shadow-gold-500/20 whitespace-nowrap"
+            {/* Action - col-span-1 */}
+            <div className="col-span-1 text-right">
+                <button
+                    onClick={handleClick}
+                    disabled={registering || registered}
+                    className={`w-full py-2 rounded-lg text-xs font-bold transition-all ${registered
+                        ? 'bg-green-500 text-white cursor-default'
+                        : registering
+                            ? 'bg-slate-700 text-slate-400 cursor-wait'
+                            : 'bg-gold-400 hover:bg-gold-500 text-slate-900 shadow-lg shadow-gold-500/20'
+                        }`}
                 >
-                    Register
-                </a>
+                    {registering ? 'Processing...' : registered ? 'Registered' : 'Register'}
+                </button>
             </div>
         </div>
-    )
+    );
 }

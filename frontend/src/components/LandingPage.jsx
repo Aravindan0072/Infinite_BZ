@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { ArrowRight, CheckCircle2, Calendar, Database, MousePointer2, ChevronDown, ChevronUp, Clock, MapPin, Mail, Phone, MessageSquare, ExternalLink } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Calendar, Database, MousePointer2, ChevronDown, ChevronUp, Clock, MapPin, Mail, Phone, MessageSquare, ExternalLink, Search } from 'lucide-react';
 
 export default function LandingPage({ onNavigate, onLogin, onSignup, events, user }) {
     const upcomingEvents = events.slice(0, 3);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#c165f0] to-[#953FC2] text-white font-sans selection:bg-gold-500/30">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#0b1021] to-slate-800 text-white font-sans selection:bg-gold-500/30">
 
             {/* 1. NAVBAR (Deep Contrast Header) */}
-            <nav className="fixed w-full z-50 bg-[#301934]/95 backdrop-blur-md border-b border-white/10 shadow-lg">
+            <nav className="fixed w-full z-50 bg-slate-900/95 backdrop-blur-md border-b border-white/10 shadow-lg">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#c165f0] font-bold text-xl">E</div>
+                        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-gold-500 font-bold text-xl">E</div>
                         <span className="text-xl font-bold text-white tracking-tight">Infinite BZ</span>
                     </div>
 
@@ -37,7 +37,7 @@ export default function LandingPage({ onNavigate, onLogin, onSignup, events, use
                         {!user && (
                             <button
                                 onClick={onSignup}
-                                className="bg-gold-500 hover:bg-gold-600 text-[#301934] text-sm font-bold px-5 py-2.5 rounded-lg transition-all shadow-lg shadow-gold-500/20"
+                                className="bg-gold-500 hover:bg-gold-600 text-slate-900 text-sm font-bold px-5 py-2.5 rounded-lg transition-all shadow-lg shadow-gold-500/20"
                             >
                                 Get Started
                             </button>
@@ -123,6 +123,38 @@ export default function LandingPage({ onNavigate, onLogin, onSignup, events, use
                             </div>
                         </div>
                     ))}
+                </div>
+            </section>
+
+            {/* 3.5 HOW IT WORKS (New Section) */}
+            <section className="py-24 px-6 bg-[#0B1221]">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center max-w-2xl mx-auto mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">How It Works</h2>
+                        <p className="text-white/60">Get started in 3 simple steps. No complicated signups.</p>
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-12 relative">
+                        {/* Connecting Line (Desktop) */}
+                        <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-red-500/0 via-gold-500/50 to-red-500/0 border-t border-dashed border-white/20"></div>
+
+                        {[
+                            { step: "01", title: "Choose Your City", desc: "Select Chennai (more coming soon) to see local tech events.", icon: MapPin },
+                            { step: "02", title: "Browse Events", desc: "Filter by free, paid, startup, or networking categories.", icon: Search },
+                            { step: "03", title: "Register & Attend", desc: "Click through to the official page and secure your spot.", icon: ExternalLink }
+                        ].map((item, i) => (
+                            <div key={i} className="relative flex flex-col items-center text-center">
+                                <div className="w-24 h-24 rounded-2xl bg-[#1A2338] border border-white/10 flex items-center justify-center text-gold-500 mb-6 relative z-10 shadow-xl shadow-black/50 group hover:-translate-y-2 transition-transform duration-300">
+                                    <item.icon size={32} />
+                                    <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gold-500 text-[#301934] font-bold flex items-center justify-center text-sm border-2 border-[#0B1221]">
+                                        {item.step}
+                                    </div>
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                                <p className="text-white/60 leading-relaxed max-w-xs">{item.desc}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </section>
 

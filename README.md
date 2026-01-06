@@ -1,107 +1,100 @@
-# Infinite BZ - Tech Meetup Aggregator
+# Infinite Tech AI - Event Aggregator Web Application
 
-Welcome to the Infinite BZ project! This guide will help you set up and run the application locally.
+A comprehensive full-stack web application designed to aggregate, filter, and manage professional networking events. Built for "Infinite Tech AI", it features auto-registration capabilities using Playwright automation.
 
-## Prerequisites
+## 🚀 Technologies Used
 
-Ensure you have the following installed on your machine:
-*   **Python 3.10+** (Active Python release)
-*   **Node.js 18+** (LTS recommended)
-*   **Git**
-*   **PostgreSQL** (Ensure the service is running and you have a database url)
+### Frontend
+*   **Framework**: React (Vite)
+*   **Styling**: Tailwind CSS (Custom Dark/Cyan Theme)
+*   **Icons**: Lucide React
+*   **State Management**: React Hooks (useState, useEffect)
+*   **HTTP Client**: Built-in Fetch API
 
----
+### Backend
+*   **Framework**: FastAPI (Python)
+*   **Database**: PostgreSQL (via SQLModel/SQLAlchemy)
+*   **Automation**: Playwright (for scraping and auto-registration)
+*   **Authentication**: JWT (JSON Web Tokens) + Google OAuth
+*   **Server**: Uvicorn
 
-## 🚀 Backend Setup (Python/FastAPI)
+## 📂 Project Structure
 
-The backend is located in the `backend/` directory.
+```
+Infinite_BZ/
+├── backend/            # Python FastAPI Backend
+│   ├── app/            # Main Application Code
+│   │   ├── api/        # API Routes
+│   │   ├── models/     # Database Models (SQL Model)
+│   │   └── services/   # Business Logic (Scraper, Registrar)
+│   ├── requirements.txt
+│   └── run.py          # Entry point
+│
+├── frontend/           # React Frontend
+│   ├── src/            # Source Code
+│   └── tailwind.config.js
+```
 
-### 1. Navigate to the Backend Directory
+## 🛠️ Setup Instructions
+
+### Prerequisites
+*   Python 3.10+
+*   Node.js & npm
+*   PostgreSQL Database
+
+### 1. Backend Setup
+Navigate to the backend directory:
 ```bash
 cd backend
 ```
 
-### 2. Create and Activate a Virtual Environment
-It is recommended to use a virtual environment to manage dependencies.
-
-**Windows (Git Bash):**
+Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/Scripts/activate
-```
-**Windows (Command Prompt):**
-```cmd
-python -m venv venv
-venv\Scripts\activate
+# Windows
+.\venv\Scripts\activate
+# Mac/Linux
+source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+Install dependencies:
 ```bash
 pip install -r requirements.txt
+playwright install  # Install browser binaries
 ```
 
-### 4. Configure Environment Variables
-Create a `.env` file inside the `backend/` folder (or ask the lead for the file).
-It should contain:
-
-```ini
-# Database Connection
-DATABASE_URL=postgresql+asyncpg://postgres:YourPassword@localhost:5432/events_hub
-# (Replace 'YourPassword' with your local DB password)
-
-# Email Service (For Forgot Password)
-MAIL_USERNAME=infinite.bz.support@gmail.com
-MAIL_PASSWORD=your_app_password_here
-```
-
-### 5. Run the Server
+Run the server:
 ```bash
 python run.py
 ```
-*   The backend will start at: `http://localhost:8000`
-*   API Documentation (Swagger): `http://localhost:8000/docs`
+*The backend runs on http://localhost:8000*
 
----
-
-## 🎨 Frontend Setup (React/Vite)
-
-The frontend is located in the `frontend/` directory.
-
-### 1. Navigate to the Frontend Directory
-Open a **new terminal** window/tab and run:
+### 2. Frontend Setup
+Navigate to the frontend directory:
 ```bash
 cd frontend
 ```
 
-### 2. Install Dependencies
+Install dependencies:
 ```bash
 npm install
 ```
 
-### 3. Run the Development Server
+Run the development server:
 ```bash
 npm run dev
 ```
-*   The frontend will start at: `http://localhost:5174` (or similar port)
+*The frontend runs on http://localhost:5173*
 
----
+## ✨ Key Features
+*   **Event Aggregation**: Scrapes and displays events from Eventbrite and other sources.
+*   **Advanced Filtering**: Filter by City, Industry, Date, Cost, and Mode (Online/Offline).
+*   **Auto-Registration**: Automates the checkout process for free events using Playwright.
+*   **User Dashboard**: Track registered events and view statistics.
+*   **Dark Mode Theme**: Premium "Infinite Tech AI" dark theme with Cyan accents.
 
-## 🛠️ Common Issues
-
-### "Address already in use" (Port 8000)
-If you see this error when starting the backend, it means a previous python process is still running.
-**Fix:**
-```bash
-# Git Bash:
-taskkill //F //IM python.exe
-
-# CMD/PowerShell:
-taskkill /F /IM python.exe
-```
-Then try running `python run.py` again.
-
-### "Connection Refused" (Frontend)
-If the frontend shows a blank screen or cannot fetch events, ensure the **Backend is running** in a separate terminal window.
-
----
-**Happy Coding!**
+## 🤝 Contribution
+1.  Clone the repository.
+2.  Create a feature branch.
+3.  Commit your changes.
+4.  Push to the branch and open a Pull Request.

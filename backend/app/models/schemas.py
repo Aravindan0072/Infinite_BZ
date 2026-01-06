@@ -35,6 +35,10 @@ class UserRegistration(SQLModel, table=True):
     event_id: int = Field(foreign_key="event.id")
     user_email: str
     registered_at: datetime = Field(default_factory=datetime.now)
+    
+    # Auto-Registration Fields
+    confirmation_id: Optional[str] = None
+    status: str = Field(default="PENDING") # PENDING, SUCCESS, FAILED
 
 # --- User Authentication Models ---
 

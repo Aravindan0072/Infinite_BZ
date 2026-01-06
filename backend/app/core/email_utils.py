@@ -8,24 +8,34 @@ load_dotenv() # Load variables from .env file
 # Configuration: Read from Environment Variables
 MAIL_USERNAME = os.getenv("MAIL_USERNAME", "")
 MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")
-MAIL_FROM = os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME", ""))
+MAIL_FROM = os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME"))
+if not MAIL_FROM:
+    MAIL_FROM = "noreply@example.com" # Placeholder to satisfy Pydantic validation when email is disabled
+
 MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
 MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
 
 # Check if credentials exist to enable real email
 ENABLE_EMAIL = bool(MAIL_USERNAME and MAIL_PASSWORD)
 
-conf = ConnectionConfig(
-    MAIL_USERNAME = MAIL_USERNAME,
-    MAIL_PASSWORD = MAIL_PASSWORD,
-    MAIL_FROM = MAIL_FROM,
-    MAIL_PORT = MAIL_PORT,
-    MAIL_SERVER = MAIL_SERVER,
-    MAIL_STARTTLS = True,
-    MAIL_SSL_TLS = False,
-    USE_CREDENTIALS = True,
-    VALIDATE_CERTS = True
-)
+conf = None
+if ENABLE_EMAIL:
+    try:
+        conf = ConnectionConfig(
+            MAIL_USERNAME = MAIL_USERNAME,
+            MAIL_PASSWORD = MAIL_PASSWORD,
+            MAIL_FROM = MAIL_FROM,
+            MAIL_PORT = MAIL_PORT,
+            MAIL_SERVER = MAIL_SERVER,
+            MAIL_STARTTLS = True,
+            MAIL_SSL_TLS = False,
+            USE_CREDENTIALS = True,
+            VALIDATE_CERTS = True
+        )
+    except Exception as e:
+        print(f"Warning: Failed to configure email: {e}")
+        ENABLE_EMAIL = False
+
 
 async def send_reset_email(email: EmailStr, otp: str):
     """

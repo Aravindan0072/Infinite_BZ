@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Check, X, ArrowLeft, Github, Linkedin, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Calendar, MapPin, Search, ArrowRight, CheckCircle2, Linkedin, ShieldCheck, Check, X, ArrowLeft } from 'lucide-react';
+import { TermsModal, PrivacyModal } from './LegalDocs';
 import { GoogleLogin } from '@react-oauth/google';
 
 export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) {
@@ -26,7 +27,10 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
         setResetStep(1);
         setOtp('');
         setNewPassword('');
+        setConfirmPassword('');
     };
+
+    const [activeModal, setActiveModal] = useState(null); // 'terms' | 'privacy' | null
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -141,6 +145,11 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                 setResetStep(2);
             } else {
                 // Step 2: Reset Password
+                // Step 2: Reset Password
+                if (newPassword !== confirmPassword) {
+                    throw new Error("Passwords do not match");
+                }
+
                 const res = await fetch('/api/v1/auth/reset-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -193,7 +202,7 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                     </p>
 
                     <div className="inline-flex items-center gap-3 bg-slate-800/50 backdrop-blur-md px-5 py-3 rounded-full border border-white/10">
-                        <ShieldCheck className="text-sky-400" size={20} />
+                        <CheckCircle2 className="text-sky-400" size={20} />
                         <span className="text-sm font-semibold text-white">Trusted by 10,000+ Developers in India</span>
                     </div>
                 </div>
@@ -202,7 +211,7 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
             {/* RIGHT PANEL (Form) */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative">
                 <button onClick={onBack} className="absolute top-6 left-6 p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
-                    <ArrowLeft size={24} />
+                    <ArrowRight size={24} className="rotate-180" />
                 </button>
 
                 <div className="w-full max-w-md space-y-8">
@@ -226,18 +235,20 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
 
                     {/* Mode Switcher */}
                     {mode !== 'forgot' && (
-                        <div className="grid grid-cols-2 p-1 bg-slate-800/50 rounded-xl border border-white/5">
+                        <div className="grid grid-cols-2 p-1 bg-[#0B1221] rounded-xl border border-white/10">
                             <button
                                 onClick={() => toggleMode('login')}
-                                className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${mode === 'login' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`py-2.5 rounded-lg text-sm font-bold transition-all relative overflow-hidden ${mode === 'login' ? 'text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
                             >
-                                Log In
+                                {mode === 'login' && <div className="absolute inset-0 bg-gradient-to-r from-sky-600 to-purple-600 opacity-100" />}
+                                <span className="relative z-10">Log In</span>
                             </button>
                             <button
                                 onClick={() => toggleMode('signup')}
-                                className={`py-2.5 rounded-lg text-sm font-semibold transition-all ${mode === 'signup' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                className={`py-2.5 rounded-lg text-sm font-bold transition-all relative overflow-hidden ${mode === 'signup' ? 'text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
                             >
-                                Sign Up
+                                {mode === 'signup' && <div className="absolute inset-0 bg-gradient-to-r from-sky-600 to-purple-600 opacity-100" />}
+                                <span className="relative z-10">Sign Up</span>
                             </button>
                         </div>
                     )}
@@ -317,6 +328,24 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                                         </button>
                                     </div>
                                 </div>
+
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Confirm New Password</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Re-enter new password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors placeholder:text-slate-600 pr-10 ${confirmPassword && confirmPassword !== newPassword ? 'border-red-500/50' : 'border-slate-700'}`}
+                                            required
+                                        />
+                                    </div>
+                                    {confirmPassword && confirmPassword !== newPassword && (
+                                        <p className="text-xs text-red-400">Passwords do not match</p>
+                                    )}
+                                </div>
                             </>
                         )}
 
@@ -360,8 +389,7 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                                                 placeholder="Re-enter your password"
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                                className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors placeholder:text-slate-600 pr-10 ${confirmPassword && confirmPassword !== password ? 'border-red-500/50' : 'border-slate-700'
-                                                    }`}
+                                                className={`w-full bg-slate-900 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-sky-500 transition-colors placeholder:text-slate-600 pr-10 ${confirmPassword && confirmPassword !== password ? 'border-red-500/50' : 'border-slate-700'}`}
                                                 required
                                             />
                                         </div>
@@ -376,28 +404,30 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                         {/* AGREEMENT CHECKBOX */}
                         {mode === 'signup' && (
                             <div className="flex items-start gap-3 pt-2">
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id="terms"
-                                        checked={agreed}
-                                        onChange={(e) => setAgreed(e.target.checked)}
-                                        className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-600 bg-slate-900 checked:border-sky-500 checked:bg-sky-500 transition-all"
-                                    />
-                                    <Check size={14} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100" />
+                                <div className="flex items-center gap-2">
+                                    <div className="relative flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="agreed"
+                                            checked={agreed}
+                                            onChange={(e) => setAgreed(e.target.checked)}
+                                            className="peer h-4 w-4 shrink-0 rounded border border-slate-700 bg-slate-900 ring-offset-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-50 appearance-none checked:bg-sky-500 checked:border-sky-500 transition-all cursor-pointer"
+                                        />
+                                        <CheckCircle2 size={12} className="absolute top-0.5 left-0.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity" />
+                                    </div>
+                                    <label htmlFor="agreed" className="text-sm font-medium text-slate-400 select-none cursor-pointer">
+                                        I agree to the <span onClick={(e) => { e.preventDefault(); setActiveModal('terms'); }} className="text-sky-500 hover:text-sky-400 hover:underline cursor-pointer">Terms and Conditons</span> and <span onClick={(e) => { e.preventDefault(); setActiveModal('privacy'); }} className="text-sky-500 hover:text-sky-400 hover:underline cursor-pointer">Privacy Policy</span>.
+                                    </label>
                                 </div>
-                                <label htmlFor="terms" className="text-sm text-slate-400 cursor-pointer select-none">
-                                    I agree to the <span className="text-sky-500 font-semibold hover:underline">Terms of Service</span> and <span className="text-sky-500 font-semibold hover:underline">Privacy Policy</span>.
-                                </label>
                             </div>
                         )}
 
                         <button
-                            disabled={loading || (mode === 'signup' && (!agreed || password !== confirmPassword))}
+                            disabled={loading || (mode === 'signup' && (!agreed || password !== confirmPassword)) || (mode === 'forgot' && resetStep === 2 && newPassword !== confirmPassword)}
                             type="submit"
-                            className={`w-full font-bold py-3.5 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2 ${(loading || (mode === 'signup' && (!agreed || password !== confirmPassword)))
+                            className={`w-full font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 transform active:scale-[0.98] ${(loading || (mode === 'signup' && (!agreed || password !== confirmPassword)) || (mode === 'forgot' && resetStep === 2 && newPassword !== confirmPassword))
                                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed hidden-spinner'
-                                : 'bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/20'
+                                : 'bg-gradient-to-r from-gold-500 to-sky-600 hover:from-gold-400 hover:to-sky-500 text-slate-900 shadow-sky-500/25 ring-1 ring-white/10'
                                 }`}
                         >
                             {loading ? 'Processing...' : (
@@ -448,6 +478,9 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                     )}
                 </div>
             </div>
-        </div>
+            {activeModal === 'terms' && <TermsModal onClose={() => setActiveModal(null)} />}
+            {activeModal === 'privacy' && <PrivacyModal onClose={() => setActiveModal(null)} />}
+        </div >
     )
 }
+
