@@ -161,7 +161,7 @@ export default function Dashboard({ user, onLogout }) {
                             <i className="text-white">EF</i>
                         </div>
                         <div>
-                            EventFlow
+                            Infinite BZ
                             <span className="block text-[10px] font-normal text-white/70">Chennai Edition</span>
                         </div>
                     </div>
