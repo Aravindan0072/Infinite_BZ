@@ -58,3 +58,14 @@ npm run dev
 
 ## License
 MIT
+
+## Latest Updates (Jan 2026) -> "Antigravity" Refactor
+
+### Create Event Page Overhaul
+*   **Split-Screen Layout**: Implemented a responsive 60/40 grid layout with a scrollable form and sticky live preview.
+*   **Antigravity Design**: Floating dock, glassmorphism effects, glowing borders, and smooth slide-down animations.
+*   **Pro Features**:
+    *   **Ticketing**: Support for Free vs Paid events, capacity limits, and registration deadlines.
+    *   **Smart Location**: Dynamic toggle between Physical Venue and Virtual Meeting Link.
+    *   **Time Zone**: Persistent time zone selector for global event planning.
+    *   **Rich Text**: Custom WYSIWYG editor with Lucide-icon toolbar for event descriptions.
