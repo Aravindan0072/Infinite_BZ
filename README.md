@@ -69,3 +69,24 @@ MIT
     *   **Smart Location**: Dynamic toggle between Physical Venue and Virtual Meeting Link.
     *   **Time Zone**: Persistent time zone selector for global event planning.
     *   **Rich Text**: Custom WYSIWYG editor with Lucide-icon toolbar for event descriptions.
+
+### Event Detail UI Refactor
+*   **Pro-Level Dashboard Modal**: Internal "InfiniteBZ" events now open in a premium, glassmorphic modal instead of redirecting externally.
+*   **Smart Layout**: 
+    *   **Desktop**: Sticky sidebar keeps engagement actions (Price, Register) always visible.
+    *   **Mobile**: Fluid scrolling layout prevents content overlap.
+*   **Auto-Registration**: Seamless one-click registration integration with the backend API.
+*   **Source Differentiation**: Visual indicators (Eye vs External Link) to distinguish between Community Events and External Listings (Eventbrite/Meetup).
+*   **Image Upload**: Integrated local file upload support for custom event cover images.
+
+### My Events & Interaction Refactor (Jan-2 2026)
+*   **My Events Dashboard**:
+    *   **Dynamic Data**: Replaced static placeholders with real-time data fetching from `/api/v1/events/my-events`.
+    *   **Live Stats**: Client-side calculation for "Active Events", "Pending", and "Total Registrations".
+    *   **Actionable UI**: Integrated Search, Sort (Newest/Oldest), and Delete functionality with immediate UI updates.
+*   **Create Event Refinement**:
+    *   **Dark Theme Enforcement**: Strict adherence to `bg-slate-900`/`text-white` with `cyan-500` accents.
+    *   **Rich Content**: Added support for comprehensive **Agenda** and **Speaker** profiles.
+*   **Backend Flexibility**: 
+    *   Updated `Event` model to store rich content (Agenda/Speakers) in a flexible `raw_data` JSONB column, avoiding rigid schema migrations.
+*   **Unified Navigation**: `EventFeed` now consistently opens the detailed internal modal for *all* events, improving the user journey.
