@@ -23,12 +23,44 @@ class Event(SQLModel, table=True):
     organizer_name: Optional[str] = None
     is_free: bool = Field(default=True)
     online_event: bool = Field(default=False)
+    category: Optional[str] = Field(default="Business", index=True)
+    
+    # New Fields
+    capacity: Optional[int] = None
+    registration_deadline: Optional[datetime] = None
+    meeting_link: Optional[str] = None
+    meeting_link_private: bool = Field(default=True)
+    timezone: Optional[str] = "UTC"
     
     # --- NEW: The JSON Dump Column ---
     # This uses PostgreSQL's JSONB type for efficient storage
     raw_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSONB))
     
     created_at: datetime = Field(default_factory=datetime.now)
+
+class EventCreate(SQLModel):
+    title: str
+    description: Optional[str] = None
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    venue_name: Optional[str] = None
+    venue_address: Optional[str] = None
+    image_url: Optional[str] = None
+    category: Optional[str] = "Business"
+    is_free: bool = True
+    online_event: bool = False
+    
+    # New Fields
+    capacity: Optional[int] = None
+    registration_deadline: Optional[datetime] = None
+    meeting_link: Optional[str] = None
+    meeting_link_private: bool = True
+    timezone: Optional[str] = "UTC"
+    
+    # Pro Fields
+    organizer_name: Optional[str] = None
+    organizer_email: Optional[str] = None
+    price: Optional[str] = None
 
 class UserRegistration(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
