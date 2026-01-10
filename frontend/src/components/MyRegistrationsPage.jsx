@@ -1,8 +1,53 @@
-import React, { useState } from 'react';
-import { ChevronLeft, MapPin, Clock, Users, Bookmark, Bell, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, MapPin, Clock, Users, Bookmark, Bell, HelpCircle, Calendar, CheckCircle2 } from 'lucide-react';
 
 export default function MyRegistrationsPage({ onNavigate, user }) {
   const [activeTab, setActiveTab] = useState('going');
+  const [registrations, setRegistrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchUserRegistrations();
+  }, []);
+
+  const fetchUserRegistrations = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:8000/api/v1/user/registrations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRegistrations(data.registrations || []);
+      } else {
+        setError('Failed to load registrations');
+      }
+    } catch (err) {
+      console.error('Error fetching registrations:', err);
+      setError('Failed to load registrations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -115,52 +160,99 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
 
         {/* Events */}
         <div>
-          <div className="text-sm text-slate-400 mb-6 font-semibold">MON, JAN 12</div>
-
-          {/* Event Card */}
-          <div className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition max-w-md">
-            <div className="relative h-48 bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center">
-              <div className="absolute top-4 left-4 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                ● Going
-              </div>
-              <button className="absolute top-4 right-4 bg-white rounded-lg p-2 hover:bg-gray-100">
-                📌
+          {loading ? (
+            <div className="text-center py-10 text-slate-500">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-4"></div>
+              Loading your registrations...
+            </div>
+          ) : error ? (
+            <div className="text-center py-10 text-red-500">
+              <p>{error}</p>
+              <button
+                onClick={fetchUserRegistrations}
+                className="mt-4 px-4 py-2 bg-primary-500 text-slate-900 rounded-lg font-bold hover:bg-primary-600 transition-colors"
+              >
+                Try Again
               </button>
-              <div className="text-center">
-                <div className="flex justify-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-yellow-600 flex items-center justify-center text-2xl">👨</div>
-                  <div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center text-2xl">👨</div>
-                  <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-2xl">🐺</div>
-                  <div className="w-10 h-10 rounded-full bg-yellow-700 flex items-center justify-center text-2xl">👨</div>
-                  <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-2xl">👩</div>
-                </div>
-                <p className="text-white text-lg font-bold">More Than<br />Family</p>
-              </div>
             </div>
-
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Find Partners, Recruit, or Collaborate – New on Ronda Jobs India!
-              </h3>
-
-              <div className="space-y-2 text-sm text-gray-700 mb-4">
-                <div className="flex items-center gap-2">
-                  <span>Mon, Jan 12 · 9:00 AM IST</span>
-                  <span className="text-red-500">●</span>
-                  <span className="text-gray-600">Online</span>
-                </div>
-                <div>
-                  by <span className="font-semibold">Ronda Night</span> - <span className="text-gray-600">Exciting Dating event · 3.1</span>
-                  <span className="text-red-500 ml-1">⭐</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-gray-700 font-semibold">
-                <Users size={18} />
-                <span>9 attendees</span>
-              </div>
+          ) : registrations.length === 0 ? (
+            <div className="text-center py-10 text-slate-500">
+              <Calendar size={48} className="mx-auto mb-4 text-slate-600" />
+              <h3 className="text-xl font-bold text-white mb-2">No registrations yet</h3>
+              <p className="text-slate-400 mb-4">You haven't registered for any events yet.</p>
+              <button
+                onClick={onNavigate}
+                className="px-6 py-3 bg-primary-500 text-slate-900 rounded-lg font-bold hover:bg-primary-600 transition-colors"
+              >
+                Browse Events
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {registrations.map((event, index) => (
+                <div key={event.id || index} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition">
+                  <div className="relative h-32 bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center">
+                    <div className="absolute top-2 left-2 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={12} />
+                      Registered
+                    </div>
+                    {event.image_url && (
+                      <img
+                        src={event.image_url}
+                        alt={event.title}
+                        className="w-full h-full object-cover absolute inset-0"
+                      />
+                    )}
+                    <div className="text-center relative z-10 px-2">
+                      <p className="text-white text-sm font-bold overflow-hidden text-ellipsis" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{event.title}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 overflow-hidden text-ellipsis" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                      {event.title}
+                    </h3>
+
+                    <div className="space-y-1 text-xs text-gray-700 mb-3">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        <span>{formatDate(event.start_time)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock size={14} />
+                        <span>{formatTime(event.start_time)}</span>
+                      </div>
+                      {!event.online_event && event.venue_name && (
+                        <div className="flex items-center gap-1">
+                          <MapPin size={14} />
+                          <span className="truncate">{event.venue_name}</span>
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500">
+                        Registered on {new Date(event.registration_date).toLocaleDateString()}
+                      </div>
+                    </div>
+
+
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1 text-gray-700 font-medium">
+                        <Users size={14} />
+                        <span className="text-xs">Confirmed</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        event.is_free
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {event.is_free ? 'Free' : 'Paid'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

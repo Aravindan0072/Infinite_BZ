@@ -385,9 +385,8 @@ async def register_for_event(
     event = await session.get(Event, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    
-    if not event.is_free:
-         raise HTTPException(status_code=400, detail="Auto-registration currently supports FREE events only.")
+
+    # Allow registration for both free and paid events
 
     # 2. Check if already registered
     stmt = select(UserRegistration).where(
@@ -506,4 +505,40 @@ async def update_user_profile(
             "bio": user.bio,
             "profile_image": user.profile_image
         }
+    }
+
+# --- 6. USER REGISTRATIONS ENDPOINT ---
+@router.get("/user/registrations")
+async def get_user_registrations(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get all events registered by the current user.
+    """
+    from sqlalchemy.orm import selectinload
+
+    # Query user registrations with event details
+    stmt = select(UserRegistration).where(
+        UserRegistration.user_email == current_user.email,
+        UserRegistration.status == "SUCCESS"
+    ).options(selectinload(UserRegistration.event))
+
+    result = await session.execute(stmt)
+    registrations = result.scalars().all()
+
+    # Format response with event details
+    registered_events = []
+    for reg in registrations:
+        if reg.event:  # Ensure event still exists
+            event_data = {
+                **reg.event.dict(),
+                "registration_date": reg.registered_at,
+                "confirmation_id": reg.confirmation_id
+            }
+            registered_events.append(event_data)
+
+    return {
+        "registrations": registered_events,
+        "total": len(registered_events)
     }

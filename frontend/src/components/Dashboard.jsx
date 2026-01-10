@@ -39,6 +39,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
 
     useEffect(() => {
         fetchDashboardStats();
+        fetchUserRegistrations(); // Fetch existing registrations to show registered status
     }, []);
 
     useEffect(() => {
@@ -57,6 +58,24 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
             }
         } catch (err) {
             console.error("Failed to fetch admin stats", err);
+        }
+    };
+
+    const fetchUserRegistrations = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:8000/api/v1/user/registrations', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setUserRegistrations(data.registrations || []);
+                // Also update newlyRegisteredIds to include existing registrations
+                const registeredIds = (data.registrations || []).map(reg => reg.id);
+                setNewlyRegisteredIds(prev => [...new Set([...prev, ...registeredIds])]);
+            }
+        } catch (err) {
+            console.error("Failed to fetch user registrations", err);
         }
     };
 
@@ -131,6 +150,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
     const [pendingEventId, setPendingEventId] = useState(null);
     const [pendingEventTitle, setPendingEventTitle] = useState("");
     const [newlyRegisteredIds, setNewlyRegisteredIds] = useState([]);
+    const [userRegistrations, setUserRegistrations] = useState([]);
 
     const handleRegisterClick = (event) => {
         // CHECK SOURCE: If InfiniteBZ, open Detail Modal
@@ -149,24 +169,41 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
         setShowConfirmModal(true);
     };
 
-    const handleInternalRegistration = (event) => {
-        // For Internal events, we just verify directly or simulate the flow
-        // Re-using the "Manual Confirmation" flow logic:
-        setPendingEventId(event.id);
-        // We can't call confirmRegistration direct cause it needs pendingEventId state which sets async
-        // So we trigger it slightly differently or just rely on the existing logic
-        // Better approach:
-        // Trigger generic confirm API
-        const doConfirm = async () => {
+    const handleInternalRegistration = async (event) => {
+        try {
             const token = localStorage.getItem('token');
-            await fetch(`http://localhost:8000/api/v1/events/${event.id}/register`, {
+            const res = await fetch(`http://localhost:8000/api/v1/events/${event.id}/register`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            setNewlyRegisteredIds(prev => [...prev, event.id]);
-            // Don't close detail modal immediately so user sees "Registered" state change in it
-        };
-        doConfirm();
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (parseErr) {
+                console.error('Failed to parse response:', parseErr);
+                alert(`Registration failed: Server error (${res.status})`);
+                return;
+            }
+
+            if (res.ok && data.status === 'SUCCESS') {
+                // Registration successful - update UI state
+                setNewlyRegisteredIds(prev => [...prev, event.id]);
+                alert('Registration successful!');
+            } else if (data.status === 'ALREADY_REGISTERED') {
+                // Already registered - still update UI
+                setNewlyRegisteredIds(prev => [...prev, event.id]);
+                alert('You are already registered for this event.');
+            } else {
+                // Registration failed - show detailed error
+                const errorMessage = data.detail || data.message || `Server error (${res.status})`;
+                alert(`Registration failed: ${errorMessage}`);
+                console.error('Registration failed:', data);
+            }
+        } catch (err) {
+            console.error('Registration error:', err);
+            alert('Registration failed. Please try again.');
+        }
     };
 
     const handleCreateEvent = async (eventData) => {
@@ -208,17 +245,28 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
             const data = await res.json();
 
             if (res.ok && data.status === 'SUCCESS') {
-                // Update Local State for UI feedback
+                // Registration successful - update UI state
                 setNewlyRegisteredIds(prev => [...prev, pendingEventId]);
-                // Close modal first
+                alert('Registration confirmed successfully!');
+                // Close modal
+                setShowConfirmModal(false);
+                setPendingEventId(null);
+                setPendingEventTitle("");
+            } else if (data.status === 'ALREADY_REGISTERED') {
+                // Already registered - still update UI
+                setNewlyRegisteredIds(prev => [...prev, pendingEventId]);
+                alert('You are already registered for this event.');
+                // Close modal
                 setShowConfirmModal(false);
                 setPendingEventId(null);
                 setPendingEventTitle("");
             } else {
-                alert(`Error: ${data.message}`);
+                // Registration failed - don't update UI
+                alert(`Registration failed: ${data.message || 'Unknown error'}`);
             }
         } catch (err) {
             console.error("Confirmation error", err);
+            alert('Registration confirmation failed. Please try again.');
         }
     };
 
@@ -519,6 +567,20 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                     onRegister={handleInternalRegistration}
                     isRegistered={selectedInternalEvent && newlyRegisteredIds.includes(selectedInternalEvent.id)}
                 />
+
+                {/* Refresh registrations when navigating to My Registrations */}
+                {activeView === 'my-registrations' && (
+                    <div style={{ display: 'none' }}>
+                        {/* Hidden trigger to refresh registrations when viewing My Registrations */}
+                        {(() => {
+                            // This will trigger when activeView changes to 'my-registrations'
+                            if (activeView === 'my-registrations') {
+                                // We could fetch registrations here if needed, but MyRegistrationsPage handles it
+                            }
+                            return null;
+                        })()}
+                    </div>
+                )}
             </main>
         </div >
     );
@@ -667,7 +729,7 @@ function EventCard({ event, onRegister, isRegistered }) {
                 >
                     {event.raw_data?.source === 'InfiniteBZ'
                         ? (
-                            <> <span>View</span> <Eye size={14} /> </>
+                            <> <span>Register</span> <Eye size={14} /> </>
                         )
                         : (registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register')
                     }

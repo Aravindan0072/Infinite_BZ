@@ -1,8 +1,8 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import JSONB 
+from sqlalchemy.dialects.postgresql import JSONB
 
 class Event(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -71,7 +71,10 @@ class UserRegistration(SQLModel, table=True):
     event_id: int = Field(foreign_key="event.id")
     user_email: str
     registered_at: datetime = Field(default_factory=datetime.now)
-    
+
+    # Relationship to Event
+    event: Optional[Event] = Relationship()
+
     # Auto-Registration Fields
     confirmation_id: Optional[str] = None
     status: str = Field(default="PENDING") # PENDING, SUCCESS, FAILED
