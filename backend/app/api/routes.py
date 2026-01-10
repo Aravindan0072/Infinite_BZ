@@ -178,8 +178,8 @@ from sqlalchemy import func, select, or_, desc, cast, Date
 from datetime import datetime, date as date_type
 @router.get("/events", response_model=EventListResponse) # Changed response model
 async def list_events(
-    city: str = None, 
-    category: str = None, 
+    city: str = None,
+    category: str = None,
     search: str = None,
     source: str = None,
     is_free: str = None, # 'true', 'false', or None
@@ -338,7 +338,11 @@ async def list_events(
     total_events = count_result.scalar()
 
     # 4. Get DATA (Apply limit/offset)
-    query = filter_query.order_by(Event.start_time).offset(offset).limit(limit)
+    # Order by InfiniteBZ events first (URL contains infinitebz.com), then by start_time
+    if limit >= 10000:
+        query = filter_query.order_by(Event.url.ilike("%infinitebz.com%").desc(), Event.start_time)
+    else:
+        query = filter_query.order_by(Event.url.ilike("%infinitebz.com%").desc(), Event.start_time).offset(offset).limit(limit)
         
     result = await session.execute(query)
     events = result.scalars().all()

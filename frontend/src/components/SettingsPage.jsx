@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check, X } from 'lucide-react';
+import Sidebar from './Sidebar';
 
 export default function SettingsPage({ user, onNavigate }) {
   const [formData, setFormData] = useState({
@@ -157,20 +158,20 @@ export default function SettingsPage({ user, onNavigate }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 font-sans">
-      {/* Main Content */}
-      <main className="p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Back to Dashboard
-            </button>
-            <h1 className="text-2xl font-bold text-white">Settings</h1>
-          </div>
+    <div className="min-h-screen flex font-sans">
+      <Sidebar
+        activePage="settings"
+        onNavigate={(view) => {
+          if (view === 'dashboard' || view === 'my-events' || view === 'my-registrations') onNavigate('dashboard');
+          else if (view === 'settings') onNavigate('settings');
+        }}
+        onLogout={() => onNavigate('landing')}
+        onCreateClick={() => onNavigate('create-event')}
+      />
+
+      <main className="flex-1 lg:ml-64 p-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Settings</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

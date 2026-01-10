@@ -8,6 +8,7 @@ import CityDropdown from './CityDropdown';
 import CreateEventModal from './CreateEventModal';
 import EventDetailModal from './EventDetailModal';
 import MyEvents from './MyEvents';
+import MyRegistrationsPage from './MyRegistrationsPage';
 import Sidebar from './Sidebar';
 
 export default function Dashboard({ user, onLogout, onNavigate }) {
@@ -28,7 +29,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState(""); // Track input
     const [activeSearch, setActiveSearch] = useState(""); // Track triggered search
-    const [selectedCity, setSelectedCity] = useState("Chennai");
+    const [selectedCity, setSelectedCity] = useState("All Cities");
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [selectedSource, setSelectedSource] = useState("All");
     const [selectedCost, setSelectedCost] = useState("All");
@@ -228,7 +229,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
         }
     };
 
-    const totalPages = Math.ceil(eventsData.total / 10);
+    const totalPages = Math.ceil(eventsData.total / eventsData.limit);
 
     const handlePageChange = (newPage) => {
         if (newPage >= 1 && newPage <= totalPages) {
@@ -245,6 +246,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                 onNavigate={(view) => {
                     if (view === 'dashboard') setActiveView('feed');
                     else if (view === 'my-events') setActiveView('my-events');
+                    else if (view === 'my-registrations') setActiveView('my-registrations');
                     else if (view === 'settings') onNavigate('settings');
                 }}
                 onLogout={onLogout}
@@ -255,6 +257,8 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
             <main className="flex-1 lg:ml-64 p-8">
                 {activeView === 'my-events' ? (
                     <MyEvents onCreateNew={() => onNavigate('create-event')} />
+                ) : activeView === 'my-registrations' ? (
+                    <MyRegistrationsPage onNavigate={() => setActiveView('feed')} user={user} />
                 ) : (
                     <>
                         {/* Header */}
@@ -303,9 +307,6 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                                                     <p className="text-xs text-slate-500 truncate">{user?.email || 'user@example.com'}</p>
                                                 </div>
 
-                                                <button className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 transition-colors">
-                                                    <Users size={16} /> My Profile
-                                                </button>
                                                 <button
                                                     onClick={() => onNavigate('settings')}
                                                     className="w-full text-left px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2 transition-colors"

@@ -30,9 +30,9 @@ export default function Sidebar({ activePage, onNavigate, onLogout, onCreateClic
                 />
                 <NavItem
                     icon={<TrendingUp size={20} />}
-                    label="Analytics"
-                    active={activePage === 'analytics'}
-                    onClick={() => { }}
+                    label="My Registrations"
+                    active={activePage === 'my-registrations'}
+                    onClick={() => onNavigate('my-registrations')}
                 />
                 <NavItem
                     icon={<Settings size={20} />}
