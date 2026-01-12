@@ -224,3 +224,198 @@ SettingsPage/
         ├── Professional Fields
         └── Bio Field
 ```
+# My Registrations Page
+
+## Overview
+
+The My Registrations page is a dedicated interface for users to view and manage all their event registrations in the InfiniteBZ Event Management System. This page provides a comprehensive view of registered events with advanced filtering, QR code access, and calendar integration features.
+
+## Features
+
+### 📋 Event Listings
+- **Grid Layout**: Events displayed in a responsive 1-3 column grid
+- **Visual Cards**: Each event shown as an attractive card with event images, details, and status
+- **Registration Status**: Clear "Registered" badges on confirmed events
+
+### 🔍 Filtering & Search
+- **Tab Navigation**:
+  - **Going**: Upcoming events you've registered for
+  - **Saved**: Events you've saved for later
+  - **Past**: Previously attended events
+- **Search Bar**: Real-time search through event titles and details
+- **Date Filtering**: Filter events by specific dates
+
+### 🎫 QR Code Access
+- **QR Code Modal**: Click any event's QR Code icon to view
+- **Professional Display**: Styled modal with event branding
+- **Scan Instructions**: Clear guidance for QR code usage
+- **Verification Ready**: QR codes contain all necessary verification data
+
+### 📅 Calendar Integration
+- **Google Calendar**: Click "Add to Calendar" to open Google Calendar
+- **Pre-filled Details**: Event title, date, time, location, and description
+- **One-click Addition**: Direct integration with Google Calendar
+
+### 📱 Responsive Design
+- **Mobile Optimized**: Perfect display on all device sizes
+- **Adaptive Layout**: Columns adjust based on screen width
+- **Touch Friendly**: Optimized for mobile interactions
+
+## User Interface
+
+### Header Section
+```
+InfiniteBZ | [Search Bar] | [Profile Menu] | [Buttons]
+```
+
+### Tab Navigation
+```
+✓ Going    📌 Saved    ↩ Past
+```
+
+### Event Cards
+Each event displays:
+- **Event Image**: Hero image with gradient overlay
+- **Registration Badge**: Green "Registered" indicator
+- **Event Title**: Prominent title display
+- **Event Details**: Date, time, venue, registration date
+- **Action Buttons**: QR Code and Calendar icons
+
+### QR Code Modal
+```
+┌─────────────────────────────────────┐
+│ 🎫 Event QR Code                    │
+│ [Event Title]                       │
+│                                     │
+│ ┌─────────────────┐                 │
+│ │    QR CODE      │ ← Scan Area     │
+│ │                 │                 │
+│ └─────────────────┘                 │
+│                                     │
+│ How to use:                         │
+│ • Open camera app                   │
+│ • Point at QR code                  │
+│ • Details will display              │
+│                                     │
+│ [Close] [Download QR]               │
+└─────────────────────────────────────┘
+```
+
+## API Integration
+
+### Data Sources
+- **User Registrations**: `/api/v1/user/registrations`
+- **QR Code Generation**: `/api/v1/user/registrations/{event_id}/qr`
+- **Calendar Integration**: Direct Google Calendar API
+
+### Response Format
+```json
+{
+  "registrations": [
+    {
+      "id": 123,
+      "title": "Tech Conference 2024",
+      "start_time": "2024-01-15T10:00:00Z",
+      "venue_name": "Convention Center",
+      "organizer_name": "Tech Corp",
+      "registration_date": "2024-01-01T08:30:00Z",
+      "confirmation_id": "SELF-1734071053"
+    }
+  ],
+  "total": 1
+}
+```
+
+## Technical Implementation
+
+### Components
+- **MyRegistrationsPage.jsx**: Main container component
+- **State Management**: React hooks for data and UI state
+- **API Integration**: Fetch user registrations and QR codes
+- **Modal System**: QR code display modal
+
+### Key Functions
+```javascript
+fetchUserRegistrations()     // Load user registrations
+handleShowQr(eventId)        // Display QR code modal
+handleAddToCalendar(event)   // Open Google Calendar
+getFilteredRegistrations()   // Apply filters and search
+```
+
+### Styling
+- **Tailwind CSS**: Utility-first styling framework
+- **Responsive Design**: Mobile-first approach
+- **Dark Theme**: Consistent with app branding
+- **Custom Colors**: Primary (#148EAB) and accent colors
+
+## Usage Guide
+
+### Viewing Registrations
+1. Navigate to the "My Registrations" section
+2. Use tabs to filter between Going, Saved, and Past events
+3. Use the search bar to find specific events
+4. Scroll through the event grid
+
+### Accessing QR Codes
+1. Click the "QR Code" icon on any registered event
+2. View the professional QR code modal
+3. Use device camera to scan the code
+4. QR contains: Ticket ID, Event, User, Valid date/time
+
+### Adding to Calendar
+1. Click the "Add to Calendar" icon
+2. Google Calendar opens in new tab
+3. Event details are pre-filled
+4. Click "Save" in Google Calendar
+
+## Security & Privacy
+
+### Data Protection
+- **User Authentication**: Required for accessing registrations
+- **Personal Data**: Only user's own registrations displayed
+- **QR Security**: Contains verification data, not sensitive information
+
+### Privacy Features
+- **Scoped Access**: Users only see their own registrations
+- **Secure Tokens**: API calls require authentication
+- **Data Encryption**: All data transmission encrypted
+
+## Troubleshooting
+
+### Common Issues
+
+**QR Code Not Loading**
+- Check internet connection
+- Ensure event registration is confirmed
+- Try refreshing the page
+
+**Calendar Integration Not Working**
+- Ensure Google account is logged in
+- Check popup blocker settings
+- Try in different browser
+
+**Events Not Showing**
+- Verify registration status
+- Check internet connection
+- Refresh the page
+
+### Support
+For technical issues, contact the InfiniteBZ support team or check the system logs for error details.
+
+## Future Enhancements
+
+### Planned Features
+- **Bulk Actions**: Select multiple events for actions
+- **Export Options**: Download registration lists
+- **Push Notifications**: Event reminders
+- **Social Sharing**: Share registered events
+- **Advanced Filters**: Category and location filters
+
+### Performance Improvements
+- **Lazy Loading**: Load events on demand
+- **Caching**: Cache frequently accessed data
+- **Offline Support**: Basic functionality without internet
+
+---
+
+**InfiniteBZ Event Management System** | My Registrations Module

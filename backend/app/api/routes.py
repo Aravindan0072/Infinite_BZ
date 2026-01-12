@@ -9,6 +9,7 @@ from app.core.database import get_session
 from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate
 from app.services.scraper import scrape_events_playwright # Async import
 from app.auth import get_current_user
+from app.core.email_utils import generate_qr_code, send_event_ticket_email
 from sqlmodel import SQLModel
 import uuid
 
@@ -484,7 +485,7 @@ async def register_for_event(
     confirmation_id = f"SELF-{int(time.time())}"
 
     new_reg = UserRegistration(
-        event_id=event_id, 
+        event_id=event_id,
         user_email=current_user.email,
         confirmation_id=confirmation_id,
         status="SUCCESS"
@@ -492,9 +493,25 @@ async def register_for_event(
     session.add(new_reg)
     await session.commit()
 
+    # Send QR code and PDF via email after successful registration
+    event_data = {
+        "id": event.id,
+        "title": event.title,
+        "start_time": str(event.start_time),
+        "venue_name": event.venue_name,
+        "organizer_name": event.organizer_name
+    }
+    email_sent = await send_event_ticket_email(current_user.email, event_data, confirmation_id)
+
+    message = "Registration verified and saved!"
+    if email_sent:
+        message += " Event ticket sent to your email."
+    else:
+        message += " (Note: Email sending is not configured.)"
+
     return {
         "status": "SUCCESS",
-        "message": "Registration verified and saved!",
+        "message": message,
         "confirmation_id": confirmation_id
     }
 
@@ -621,3 +638,81 @@ async def get_user_registrations(
         "registrations": registered_events,
         "total": len(registered_events)
     }
+
+# --- 7. QR CODE ENDPOINTS ---
+@router.get("/user/registrations/{event_id}/qr")
+async def get_event_qr_code(
+    event_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Generate and return QR code for a registered event.
+    """
+    # Check if user is registered for this event
+    stmt = select(UserRegistration).where(
+        UserRegistration.user_email == current_user.email,
+        UserRegistration.event_id == event_id,
+        UserRegistration.status == "SUCCESS"
+    )
+    result = await session.execute(stmt)
+    registration = result.scalars().first()
+    if not registration:
+        raise HTTPException(status_code=403, detail="You are not registered for this event")
+
+    # Get event details
+    event = await session.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Generate QR code data EXACTLY matching the PDF format sent to email
+    qr_data = f"""Ticket ID: {registration.confirmation_id}
+Event: {event.title}
+User: {current_user.email}
+Valid: {event.start_time.strftime('%Y-%m-%d %H:%M')}"""
+    qr_base64 = generate_qr_code(qr_data)
+
+    return {
+        "qr_code": qr_base64,
+        "event_title": event.title
+    }
+
+@router.post("/user/registrations/{event_id}/send-qr")
+async def send_event_qr_email_route(
+    event_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Send QR code and PDF via email for a registered event.
+    """
+    # Check if user is registered for this event
+    stmt = select(UserRegistration).where(
+        UserRegistration.user_email == current_user.email,
+        UserRegistration.event_id == event_id,
+        UserRegistration.status == "SUCCESS"
+    )
+    result = await session.execute(stmt)
+    registration = result.scalars().first()
+    if not registration:
+        raise HTTPException(status_code=403, detail="You are not registered for this event")
+
+    # Get event details
+    event = await session.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Send email
+    event_data = {
+        "id": event.id,
+        "title": event.title,
+        "start_time": str(event.start_time),
+        "venue_name": event.venue_name,
+        "organizer_name": event.organizer_name
+    }
+    success = await send_event_ticket_email(current_user.email, event_data)
+
+    if success:
+        return {"status": "success", "message": "QR code and PDF sent to your email"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send email")

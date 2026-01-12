@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, MapPin, Clock, Users, Bookmark, Bell, HelpCircle, Calendar, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, MapPin, Clock, Users, Bookmark, Bell, HelpCircle, Calendar, CheckCircle2, QrCode, CalendarPlus } from 'lucide-react';
 
 export default function MyRegistrationsPage({ onNavigate, user }) {
   const [activeTab, setActiveTab] = useState('going');
@@ -7,6 +7,7 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [qrModal, setQrModal] = useState({ show: false, qr: '', title: '' });
 
   useEffect(() => {
     fetchUserRegistrations();
@@ -72,6 +73,44 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
     });
   };
 
+  const handleShowQr = async (eventId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:8000/api/v1/user/registrations/${eventId}/qr`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQrModal({ show: true, qr: data.qr_code, title: data.event_title });
+      } else {
+        console.error('Failed to fetch QR code');
+      }
+    } catch (err) {
+      console.error('Error fetching QR code:', err);
+    }
+  };
+
+  const handleAddToCalendar = (event) => {
+    const startDate = new Date(event.start_time);
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // Assume 2 hours duration
+
+    // Format dates for Google Calendar (YYYYMMDDTHHMMSS)
+    const formatDate = (date) => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const start = formatDate(startDate);
+    const end = formatDate(endDate);
+
+    const title = encodeURIComponent(event.title);
+    const details = encodeURIComponent(event.description || 'Event details');
+    const location = encodeURIComponent(event.venue_name || 'Online Event');
+
+    const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
+
+    window.open(googleCalendarUrl, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Header */}
@@ -126,13 +165,8 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
           Back to home page
         </button>
 
-        {/* Title and Actions */}
-        <div className="flex justify-between items-start mb-8">
-          <h1 className="text-5xl font-bold text-white">Your events</h1>
-          <button className="flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-slate-900 px-4 py-2 rounded-lg font-bold transition-all shadow-lg shadow-primary-500/20">
-            📅 Add to calendar
-          </button>
-        </div>
+        {/* Title */}
+        <h1 className="text-5xl font-bold text-white mb-8">Your events</h1>
 
         {/* Tabs */}
         <div className="flex gap-4 mb-8">
@@ -271,6 +305,17 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
                         {event.is_free ? 'Free' : 'Paid'}
                       </span>
                     </div>
+
+                    <div className="flex items-center gap-4 mt-3">
+                      <div onClick={() => handleShowQr(event.id)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 cursor-pointer">
+                        <QrCode size={16} />
+                        <span className="text-xs">QR Code</span>
+                      </div>
+                      <div onClick={() => handleAddToCalendar(event)} className="flex items-center gap-1 text-gray-600 hover:text-gray-800 cursor-pointer">
+                        <CalendarPlus size={16} />
+                        <span className="text-xs">Add to Calendar</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -278,6 +323,69 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
           )}
         </div>
       </main>
+
+      {/* QR Code Modal */}
+      {qrModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-primary-500 to-indigo-600 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm">🎫</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-lg">Event QR Code</h3>
+                    <p className="text-white/80 text-sm">{qrModal.title}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setQrModal({ show: false, qr: '', title: '' })}
+                  className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <p className="text-slate-300 text-sm mb-2">Scan this QR code for event verification</p>
+                <div className="inline-block bg-white p-4 rounded-xl shadow-lg">
+                  <img
+                    src={`data:image/png;base64,${qrModal.qr}`}
+                    alt="QR Code"
+                    className="w-48 h-48"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-4 mb-6">
+                <h4 className="text-white font-semibold mb-2 text-sm">How to use:</h4>
+                <ul className="text-slate-300 text-xs space-y-1">
+                  <li>• Open your phone's camera or QR scanner</li>
+                  <li>• Point it at the QR code above</li>
+                  <li>• Your ticket details will be displayed</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setQrModal({ show: false, qr: '', title: '' })}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Close
+                </button>
+                <button className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-3 px-4 rounded-lg font-medium transition-colors shadow-lg shadow-primary-500/20">
+                  Download QR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

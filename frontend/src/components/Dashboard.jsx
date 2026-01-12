@@ -69,9 +69,11 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
             });
             if (res.ok) {
                 const data = await res.json();
-                setUserRegistrations(data.registrations || []);
+                const registrations = data.registrations || [];
+                setUserRegistrations(registrations);
+                setUserRegistrationCount(registrations.length);
                 // Also update newlyRegisteredIds to include existing registrations
-                const registeredIds = (data.registrations || []).map(reg => reg.id);
+                const registeredIds = registrations.map(reg => reg.id);
                 setNewlyRegisteredIds(prev => [...new Set([...prev, ...registeredIds])]);
             }
         } catch (err) {
@@ -151,6 +153,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
     const [pendingEventTitle, setPendingEventTitle] = useState("");
     const [newlyRegisteredIds, setNewlyRegisteredIds] = useState([]);
     const [userRegistrations, setUserRegistrations] = useState([]);
+    const [userRegistrationCount, setUserRegistrationCount] = useState(0);
 
     const handleRegisterClick = (event) => {
         // CHECK SOURCE: If InfiniteBZ, open Detail Modal
@@ -395,8 +398,8 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                             />
                             <StatCard
                                 title="Auto-Registered"
-                                value={loading ? '...' : stats.auto_registered || 0}
-                                subtext="Based on your preferences"
+                                value={loading ? '...' : userRegistrationCount}
+                                subtext="Events you've registered for"
                                 subtextColor="text-slate-500"
                                 icon={<CheckCircle2 className="text-green-500" size={24} />}
                             />
