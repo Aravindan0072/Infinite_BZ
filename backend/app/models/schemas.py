@@ -124,3 +124,15 @@ class EventListResponse(SQLModel):
     total: int
     page: int
     limit: int
+
+# --- Following System Models ---
+
+class Follow(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    follower_email: str = Field(index=True)  # The user who is following
+    followed_email: str = Field(index=True)  # The user being followed
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    # Relationships
+    follower: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Follow.follower_email", "primaryjoin": "Follow.follower_email == User.email"})
+    followed: Optional["User"] = Relationship(sa_relationship_kwargs={"foreign_keys": "Follow.followed_email", "primaryjoin": "Follow.followed_email == User.email"})

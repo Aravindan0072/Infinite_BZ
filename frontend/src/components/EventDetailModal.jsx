@@ -8,6 +8,8 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
     if (!isOpen || !event) return null;
 
     const [activeTab, setActiveTab] = useState('about');
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [isLoadingFollow, setIsLoadingFollow] = useState(false);
     const isInternal = event.raw_data?.source === 'InfiniteBZ';
     const isOnline = event.online_event || event.mode === 'online';
 
@@ -24,6 +26,31 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
         { time: "01:00 PM", title: "Lunch Break", desc: "Gourmet lunch provided at the venue." },
         { time: "02:30 PM", title: "Workshops", desc: "Hands-on sessions on AI, Marketing, and Sales." }
     ];
+
+    const handleFollow = async () => {
+        if (!event.organizer_email) return;
+
+        setIsLoadingFollow(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:8000/api/v1/user/follow/${event.organizer_email}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                setIsFollowing(true);
+            } else {
+                console.error('Failed to follow user');
+            }
+        } catch (error) {
+            console.error('Error following user:', error);
+        } finally {
+            setIsLoadingFollow(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md animate-in fade-in duration-200">
@@ -261,8 +288,16 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                         <p className="font-bold text-white text-sm">{event.organizer_name || "Community Host"}</p>
                                         <p className="text-xs text-slate-400">Organized by {event.organizer_name?.split(' ')[0]}</p>
                                     </div>
-                                    <button className="px-3 py-1.5 rounded-lg border border-slate-600 text-xs font-bold text-white hover:bg-slate-700 transition-colors">
-                                        Follow
+                                    <button
+                                        onClick={handleFollow}
+                                        disabled={isFollowing || isLoadingFollow}
+                                        className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+                                            isFollowing
+                                                ? 'bg-green-500/20 text-green-400 border-green-500/50 cursor-default'
+                                                : 'border-slate-600 text-white hover:bg-slate-700'
+                                        }`}
+                                    >
+                                        {isLoadingFollow ? 'Following...' : isFollowing ? 'Following' : 'Follow'}
                                     </button>
                                 </div>
                             </div>

@@ -17,6 +17,9 @@ export default function SettingsPage({ user, onNavigate }) {
   const [profileImagePreview, setProfileImagePreview] = useState(null);
 
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [followingData, setFollowingData] = useState([]);
+  const [followersCount, setFollowersCount] = useState(0);
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = () => {
@@ -53,8 +56,16 @@ export default function SettingsPage({ user, onNavigate }) {
 
       // Then, fetch existing profile data from database
       fetchProfileData();
+      fetchFollowingData();
     }
   }, [user]);
+
+  // Fetch following data when modal is opened
+  useEffect(() => {
+    if (showFollowingModal) {
+      fetchFollowingData();
+    }
+  }, [showFollowingModal]);
 
   const fetchProfileData = async () => {
     try {
@@ -112,6 +123,26 @@ export default function SettingsPage({ user, onNavigate }) {
         setFormData(prev => ({ ...prev, profileImage: imageData }));
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const fetchFollowingData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/v1/user/following', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFollowingData(data.following || []);
+        setFollowersCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching following data:', error);
     }
   };
 
@@ -216,6 +247,9 @@ export default function SettingsPage({ user, onNavigate }) {
                       Image selected
                     </div>
                   )}
+                  <div className="text-xs text-slate-400 mt-2 cursor-pointer hover:text-slate-300" onClick={() => setShowFollowingModal(true)}>
+                    {followersCount} following
+                  </div>
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-1">
                   {formData.firstName || formData.lastName ?
@@ -391,6 +425,55 @@ export default function SettingsPage({ user, onNavigate }) {
             </div>
           </div>
         </div>
+
+        {/* Following Modal */}
+        {showFollowingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-slate-800 w-full max-w-md mx-4 rounded-3xl shadow-2xl border border-slate-700/50 max-h-[80vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                <h3 className="text-xl font-bold text-white">Following ({followersCount})</h3>
+                <button
+                  onClick={() => setShowFollowingModal(false)}
+                  className="p-2 hover:bg-slate-700 rounded-full transition-colors"
+                >
+                  <X size={20} className="text-slate-400" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {followingData.length > 0 ? (
+                  <div className="space-y-4">
+                    {followingData.map((user, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-xl">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                          {user.first_name && user.last_name ?
+                            `${user.first_name[0]}${user.last_name[0]}`.toUpperCase() :
+                            user.email[0].toUpperCase()
+                          }
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">
+                            {user.first_name && user.last_name ?
+                              `${user.first_name} ${user.last_name}` :
+                              user.full_name || 'User'
+                            }
+                          </p>
+                          <p className="text-slate-400 text-xs">{user.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400 text-sm">Not following anyone yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

@@ -6,7 +6,7 @@ import shutil
 import os
 
 from app.core.database import get_session
-from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate
+from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate, Follow
 from app.services.scraper import scrape_events_playwright # Async import
 from app.auth import get_current_user
 from app.core.email_utils import generate_qr_code, send_event_ticket_email
@@ -639,7 +639,130 @@ async def get_user_registrations(
         "total": len(registered_events)
     }
 
-# --- 7. QR CODE ENDPOINTS ---
+# --- 7. FOLLOWING SYSTEM ENDPOINTS ---
+
+@router.post("/user/follow/{followed_email}")
+async def follow_user(
+    followed_email: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Follow a user by their email.
+    """
+    if followed_email == current_user.email:
+        raise HTTPException(status_code=400, detail="You cannot follow yourself")
+
+    # Check if the followed user exists
+    stmt = select(User).where(User.email == followed_email)
+    result = await session.execute(stmt)
+    followed_user = result.scalars().first()
+    if not followed_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check if already following
+    stmt = select(Follow).where(
+        Follow.follower_email == current_user.email,
+        Follow.followed_email == followed_email
+    )
+    result = await session.execute(stmt)
+    existing_follow = result.scalars().first()
+    if existing_follow:
+        raise HTTPException(status_code=400, detail="Already following this user")
+
+    # Create follow relationship
+    new_follow = Follow(
+        follower_email=current_user.email,
+        followed_email=followed_email
+    )
+    session.add(new_follow)
+    await session.commit()
+
+    return {"status": "success", "message": f"You are now following {followed_email}"}
+
+@router.delete("/user/follow/{followed_email}")
+async def unfollow_user(
+    followed_email: str,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Unfollow a user by their email.
+    """
+    # Find and delete the follow relationship
+    stmt = select(Follow).where(
+        Follow.follower_email == current_user.email,
+        Follow.followed_email == followed_email
+    )
+    result = await session.execute(stmt)
+    follow = result.scalars().first()
+    if not follow:
+        raise HTTPException(status_code=400, detail="You are not following this user")
+
+    await session.delete(follow)
+    await session.commit()
+
+    return {"status": "success", "message": f"You have unfollowed {followed_email}"}
+
+@router.get("/user/following")
+async def get_following(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get list of users that the current user is following.
+    """
+    stmt = select(Follow).where(Follow.follower_email == current_user.email)
+    result = await session.execute(stmt)
+    follows = result.scalars().all()
+
+    following_list = []
+    for follow in follows:
+        # Get user details for each followed user
+        stmt = select(User).where(User.email == follow.followed_email)
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+        if user:
+            following_list.append({
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "full_name": user.full_name,
+                "followed_at": follow.created_at
+            })
+
+    return {"following": following_list, "count": len(following_list)}
+
+@router.get("/user/followers")
+async def get_followers(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get list of users that are following the current user.
+    """
+    stmt = select(Follow).where(Follow.followed_email == current_user.email)
+    result = await session.execute(stmt)
+    follows = result.scalars().all()
+
+    followers_list = []
+    for follow in follows:
+        # Get user details for each follower
+        stmt = select(User).where(User.email == follow.follower_email)
+        result = await session.execute(stmt)
+        user = result.scalars().first()
+        if user:
+            followers_list.append({
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "full_name": user.full_name,
+                "followed_at": follow.created_at
+            })
+
+    return {"followers": followers_list, "count": len(followers_list)}
+
+# --- 8. QR CODE ENDPOINTS ---
 @router.get("/user/registrations/{event_id}/qr")
 async def get_event_qr_code(
     event_id: int,
