@@ -153,8 +153,7 @@ def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str,
     c.setFillColorRGB(0.1, 0.1, 0.1)  # Dark text
     c.setFont("Helvetica", 11)
     date_time = event_data.get('start_time', 'N/A')
-    formatted_date = date_time[:16] if len(date_time) > 16 else date_time
-    c.drawString(120, y_pos, formatted_date)
+    c.drawString(120, y_pos, date_time)
     y_pos -= 25
 
     # Venue

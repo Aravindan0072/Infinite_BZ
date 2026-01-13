@@ -7,7 +7,7 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [qrModal, setQrModal] = useState({ show: false, qr: '', title: '' });
+  const [qrModal, setQrModal] = useState({ show: false, qr: '', title: '', eventId: '' });
 
   useEffect(() => {
     fetchUserRegistrations();
@@ -81,7 +81,7 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setQrModal({ show: true, qr: data.qr_code, title: data.event_title });
+        setQrModal({ show: true, qr: data.qr_code, title: data.event_title, eventId: eventId });
       } else {
         console.error('Failed to fetch QR code');
       }
@@ -109,6 +109,18 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
     const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
 
     window.open(googleCalendarUrl, '_blank');
+  };
+
+  const downloadQR = () => {
+    const link = document.createElement('a');
+    link.href = `data:image/png;base64,${qrModal.qr}`;
+    link.download = `qr-code-${qrModal.title.replace(/\s+/g, '-')}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Store in localStorage
+    localStorage.setItem(`qr_code_${qrModal.eventId}`, qrModal.qr);
   };
 
   return (
@@ -341,7 +353,7 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
                   </div>
                 </div>
                 <button
-                  onClick={() => setQrModal({ show: false, qr: '', title: '' })}
+                  onClick={() => setQrModal({ show: false, qr: '', title: '', eventId: '' })}
                   className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
                 >
                   ✕
@@ -373,12 +385,15 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setQrModal({ show: false, qr: '', title: '' })}
+                  onClick={() => setQrModal({ show: false, qr: '', title: '', eventId: '' })}
                   className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
                 >
                   Close
                 </button>
-                <button className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-3 px-4 rounded-lg font-medium transition-colors shadow-lg shadow-primary-500/20">
+                <button
+                  onClick={downloadQR}
+                  className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-3 px-4 rounded-lg font-medium transition-colors shadow-lg shadow-primary-500/20"
+                >
                   Download QR
                 </button>
               </div>

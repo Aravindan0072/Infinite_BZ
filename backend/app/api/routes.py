@@ -497,7 +497,7 @@ async def register_for_event(
     event_data = {
         "id": event.id,
         "title": event.title,
-        "start_time": str(event.start_time),
+        "start_time": event.start_time.strftime('%Y-%m-%d %H:%M %p'),
         "venue_name": event.venue_name,
         "organizer_name": event.organizer_name
     }
@@ -669,7 +669,7 @@ async def get_event_qr_code(
     qr_data = f"""Ticket ID: {registration.confirmation_id}
 Event: {event.title}
 User: {current_user.email}
-Valid: {event.start_time.strftime('%Y-%m-%d %H:%M')}"""
+Valid: {event.start_time.strftime('%Y-%m-%d %H:%M %p')}"""
     qr_base64 = generate_qr_code(qr_data)
 
     return {
@@ -706,7 +706,7 @@ async def send_event_qr_email_route(
     event_data = {
         "id": event.id,
         "title": event.title,
-        "start_time": str(event.start_time),
+        "start_time": event.start_time.strftime('%Y-%m-%d %H:%M %p'),
         "venue_name": event.venue_name,
         "organizer_name": event.organizer_name
     }
