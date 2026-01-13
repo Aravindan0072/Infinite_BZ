@@ -99,8 +99,9 @@ async def create_event(
     new_event = Event(
         **event_data.dict(exclude={"organizer_email", "price", "organizer_name", "agenda", "speakers"}), # Exclude non-db columns
         eventbrite_id=custom_id,
-        url=f"https://infinitebz.com/events/{custom_id}", 
+        url=f"https://infinitebz.com/events/{custom_id}",
         organizer_name=event_data.organizer_name or current_user.full_name or "Community Member",
+        organizer_email=current_user.email,  # Set organizer email to current user
         raw_data=raw_data_dump
     )
     
@@ -641,29 +642,56 @@ async def get_user_registrations(
 
 # --- 7. FOLLOWING SYSTEM ENDPOINTS ---
 
-@router.post("/user/follow/{followed_email}")
+@router.post("/user/follow/{followed_identifier}")
 async def follow_user(
-    followed_email: str,
+    followed_identifier: str,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Follow a user by their email.
+    Follow a user by their email or full name.
     """
-    if followed_email == current_user.email:
-        raise HTTPException(status_code=400, detail="You cannot follow yourself")
+    print(f"DEBUG: Trying to follow: {followed_identifier}")
+    print(f"DEBUG: Current user: {current_user.email}")
 
-    # Check if the followed user exists
-    stmt = select(User).where(User.email == followed_email)
+    # Try to find user by email first
+    stmt = select(User).where(User.email == followed_identifier)
     result = await session.execute(stmt)
     followed_user = result.scalars().first()
+
+    if followed_user:
+        print(f"DEBUG: Found user by email: {followed_user.email}, full_name: {followed_user.full_name}")
+    else:
+        print("DEBUG: User not found by email, trying full_name")
+
+        # If not found by email, try to find by full name
+        stmt = select(User).where(User.full_name == followed_identifier)
+        result = await session.execute(stmt)
+        followed_user = result.scalars().first()
+
+        if followed_user:
+            print(f"DEBUG: Found user by full_name: {followed_user.email}, full_name: {followed_user.full_name}")
+        else:
+            print("DEBUG: User not found by full_name either")
+
+            # Debug: show all users for reference
+            all_users_stmt = select(User)
+            all_result = await session.execute(all_users_stmt)
+            all_users = all_result.scalars().all()
+            print("DEBUG: All users in database:")
+            for u in all_users:
+                print(f"  - Email: {u.email}, Full Name: {repr(u.full_name)}")
+
     if not followed_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=f"User not found for identifier: {followed_identifier}")
+
+    if followed_user.email == current_user.email:
+        raise HTTPException(status_code=400, detail="You cannot follow yourself")
 
     # Check if already following
     stmt = select(Follow).where(
         Follow.follower_email == current_user.email,
-        Follow.followed_email == followed_email
+        Follow.followed_email == followed_user.email
     )
     result = await session.execute(stmt)
     existing_follow = result.scalars().first()
@@ -673,26 +701,40 @@ async def follow_user(
     # Create follow relationship
     new_follow = Follow(
         follower_email=current_user.email,
-        followed_email=followed_email
+        followed_email=followed_user.email
     )
     session.add(new_follow)
     await session.commit()
 
-    return {"status": "success", "message": f"You are now following {followed_email}"}
+    return {"status": "success", "message": f"You are now following {followed_user.full_name or followed_user.email}"}
 
-@router.delete("/user/follow/{followed_email}")
+@router.delete("/user/follow/{followed_identifier}")
 async def unfollow_user(
-    followed_email: str,
+    followed_identifier: str,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Unfollow a user by their email.
+    Unfollow a user by their email or full name.
     """
+    # Try to find user by email first
+    stmt = select(User).where(User.email == followed_identifier)
+    result = await session.execute(stmt)
+    followed_user = result.scalars().first()
+
+    # If not found by email, try to find by full name
+    if not followed_user:
+        stmt = select(User).where(User.full_name == followed_identifier)
+        result = await session.execute(stmt)
+        followed_user = result.scalars().first()
+
+    if not followed_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     # Find and delete the follow relationship
     stmt = select(Follow).where(
         Follow.follower_email == current_user.email,
-        Follow.followed_email == followed_email
+        Follow.followed_email == followed_user.email
     )
     result = await session.execute(stmt)
     follow = result.scalars().first()
@@ -702,7 +744,7 @@ async def unfollow_user(
     await session.delete(follow)
     await session.commit()
 
-    return {"status": "success", "message": f"You have unfollowed {followed_email}"}
+    return {"status": "success", "message": f"You have unfollowed {followed_user.full_name or followed_user.email}"}
 
 @router.get("/user/following")
 async def get_following(
@@ -757,6 +799,7 @@ async def get_followers(
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "full_name": user.full_name,
+                "profile_image": user.profile_image,
                 "followed_at": follow.created_at
             })
 

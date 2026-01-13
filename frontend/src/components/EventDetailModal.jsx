@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Calendar, MapPin, Clock, User, Mail, Ticket, Globe, X, Share2, Heart,
     CheckCircle2, ArrowRight, Linkedin, Twitter, Shield, Star, LayoutGrid
@@ -10,8 +10,41 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
     const [activeTab, setActiveTab] = useState('about');
     const [isFollowing, setIsFollowing] = useState(false);
     const [isLoadingFollow, setIsLoadingFollow] = useState(false);
+    const [isLoadingCheckFollow, setIsLoadingCheckFollow] = useState(false);
     const isInternal = event.raw_data?.source === 'InfiniteBZ';
     const isOnline = event.online_event || event.mode === 'online';
+
+    // Check if user is already following this organizer when event changes
+    useEffect(() => {
+        if (event?.organizer_email) {
+            checkFollowStatus();
+        }
+    }, [event?.organizer_email]);
+
+    const checkFollowStatus = async () => {
+        if (!event?.organizer_email) return;
+
+        setIsLoadingCheckFollow(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:8000/api/v1/user/following`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const isFollowingOrganizer = data.following.some(user => user.email === event.organizer_email);
+                setIsFollowing(isFollowingOrganizer);
+            }
+        } catch (error) {
+            console.error('Error checking follow status:', error);
+        } finally {
+            setIsLoadingCheckFollow(false);
+        }
+    };
 
     // Mock Data for Enhanced UI
     const speakers = [
@@ -28,27 +61,79 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
     ];
 
     const handleFollow = async () => {
-        if (!event.organizer_email) return;
+        console.log('=== FOLLOW BUTTON CLICKED ===');
+        console.log('Event object:', event);
+        console.log('Organizer email:', event?.organizer_email);
+        console.log('Organizer name:', event?.organizer_name);
+        console.log('Current following status:', isFollowing);
+
+        // Use organizer_email if available, otherwise try to find user by name
+        let targetIdentifier = event?.organizer_email;
+
+        if (!targetIdentifier) {
+            // Fallback: try to use organizer name to find the user
+            console.log('No organizer email, trying to find user by name');
+            targetIdentifier = event?.organizer_name;
+        }
+
+        if (!targetIdentifier) {
+            console.error('❌ ERROR: No organizer email or name available');
+            alert('Cannot identify the event organizer. Please try a different event.');
+            return;
+        }
+
+        // If already following, don't do anything (one-way follow)
+        if (isFollowing) {
+            console.log('ℹ️ Already following this organizer, no action needed');
+            return;
+        }
 
         setIsLoadingFollow(true);
+        console.log('⏳ Starting follow request...');
+
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8000/api/v1/user/follow/${event.organizer_email}`, {
+            console.log('Token exists:', !!token);
+
+            if (!token) {
+                console.error('❌ ERROR: No authentication token found');
+                alert('You must be logged in to follow organizers.');
+                return;
+            }
+
+            const url = `http://localhost:8000/api/v1/user/follow/${encodeURIComponent(targetIdentifier)}`;
+            console.log('🌐 Making POST request to:', url);
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 }
             });
 
+            console.log('📡 Response status:', response.status);
+            console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
             if (response.ok) {
+                console.log('✅ Successfully followed organizer!');
                 setIsFollowing(true);
+
+                // Show success message
+                alert('Successfully followed the organizer!');
             } else {
-                console.error('Failed to follow user');
+                const errorText = await response.text();
+                console.error('❌ Failed to follow user:', response.status, errorText);
+
+                // Show error to user
+                alert(`Failed to follow organizer. Error: ${response.status} - ${errorText}`);
             }
         } catch (error) {
-            console.error('Error following user:', error);
+            console.error('❌ Network error following user:', error);
+            alert('Network error occurred. Please check your connection and try again.');
         } finally {
             setIsLoadingFollow(false);
+            console.log('🏁 Follow request completed');
         }
     };
 
@@ -231,6 +316,22 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                             <> <Ticket className="animate-pulse" /> Auto-Register </>
                                         )}
                                     </button>
+
+                                    {/* Follow Button - Moved here under Auto-Register */}
+                                    <div className="mt-4 pt-4 border-t border-slate-700/50">
+                                        <button
+                                            onClick={handleFollow}
+                                            disabled={isLoadingFollow}
+                                            className={`w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
+                                                isFollowing
+                                                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                                                    : 'bg-slate-700/50 text-white hover:bg-slate-600 border border-slate-600/50'
+                                            }`}
+                                        >
+                                            {isLoadingFollow ? 'Loading...' : isFollowing ? '✓ Followed' : '+ Follow Organizer'}
+                                        </button>
+                                    </div>
+
                                     <p className="text-center text-xs text-slate-500 mt-3">
                                         One-click registration powered by InfiniteBZ
                                     </p>
@@ -288,17 +389,6 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                         <p className="font-bold text-white text-sm">{event.organizer_name || "Community Host"}</p>
                                         <p className="text-xs text-slate-400">Organized by {event.organizer_name?.split(' ')[0]}</p>
                                     </div>
-                                    <button
-                                        onClick={handleFollow}
-                                        disabled={isFollowing || isLoadingFollow}
-                                        className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
-                                            isFollowing
-                                                ? 'bg-green-500/20 text-green-400 border-green-500/50 cursor-default'
-                                                : 'border-slate-600 text-white hover:bg-slate-700'
-                                        }`}
-                                    >
-                                        {isLoadingFollow ? 'Following...' : isFollowing ? 'Following' : 'Follow'}
-                                    </button>
                                 </div>
                             </div>
                         </div>

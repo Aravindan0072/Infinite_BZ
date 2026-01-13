@@ -56,14 +56,14 @@ export default function SettingsPage({ user, onNavigate }) {
 
       // Then, fetch existing profile data from database
       fetchProfileData();
-      fetchFollowingData();
+      fetchFollowersData();
     }
   }, [user]);
 
-  // Fetch following data when modal is opened
+  // Fetch followers data when modal is opened
   useEffect(() => {
     if (showFollowingModal) {
-      fetchFollowingData();
+      fetchFollowersData();
     }
   }, [showFollowingModal]);
 
@@ -126,10 +126,10 @@ export default function SettingsPage({ user, onNavigate }) {
     }
   };
 
-  const fetchFollowingData = async () => {
+  const fetchFollowersData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/v1/user/following', {
+      const response = await fetch('http://localhost:8000/api/v1/user/followers', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,11 +138,11 @@ export default function SettingsPage({ user, onNavigate }) {
 
       if (response.ok) {
         const data = await response.json();
-        setFollowingData(data.following || []);
+        setFollowingData(data.followers || []);
         setFollowersCount(data.count || 0);
       }
     } catch (error) {
-      console.error('Error fetching following data:', error);
+      console.error('Error fetching followers data:', error);
     }
   };
 
@@ -432,7 +432,7 @@ export default function SettingsPage({ user, onNavigate }) {
             <div className="bg-slate-800 w-full max-w-md mx-4 rounded-3xl shadow-2xl border border-slate-700/50 max-h-[80vh] flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-slate-700">
-                <h3 className="text-xl font-bold text-white">Following ({followersCount})</h3>
+                <h3 className="text-xl font-bold text-white">Followers ({followersCount})</h3>
                 <button
                   onClick={() => setShowFollowingModal(false)}
                   className="p-2 hover:bg-slate-700 rounded-full transition-colors"
@@ -447,11 +447,21 @@ export default function SettingsPage({ user, onNavigate }) {
                   <div className="space-y-4">
                     {followingData.map((user, index) => (
                       <div key={index} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-xl">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                          {user.first_name && user.last_name ?
-                            `${user.first_name[0]}${user.last_name[0]}`.toUpperCase() :
-                            user.email[0].toUpperCase()
-                          }
+                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                          {user.profile_image ? (
+                            <img
+                              src={user.profile_image}
+                              alt={user.full_name || user.email}
+                              className="w-full h-full object-contain bg-slate-700"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                              {user.first_name && user.last_name ?
+                                `${user.first_name[0]}${user.last_name[0]}`.toUpperCase() :
+                                user.email[0].toUpperCase()
+                              }
+                            </div>
+                          )}
                         </div>
                         <div className="flex-1">
                           <p className="text-white font-medium text-sm">
@@ -467,7 +477,7 @@ export default function SettingsPage({ user, onNavigate }) {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-slate-400 text-sm">Not following anyone yet</p>
+                    <p className="text-slate-400 text-sm">No followers yet</p>
                   </div>
                 )}
               </div>

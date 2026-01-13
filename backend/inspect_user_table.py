@@ -21,13 +21,20 @@ async def inspect_table():
     async with engine.connect() as conn:
         print(f"Connected to: {DATABASE_URL}")
         try:
-             # Basic query to check table exists and get 1 row
-            result = await conn.execute(text("SELECT * FROM \"user\" LIMIT 1"))
+             # Get all users
+            result = await conn.execute(text("SELECT id, email, full_name, first_name, last_name FROM \"user\""))
             print("Successfully queried 'user' table.")
-            print("Columns found in 'user' table:")
-            columns = sorted(list(result.keys()))
-            for col in columns:
-                print(f" - {col}")
+            print("Users in database:")
+            rows = result.fetchall()
+            for row in rows:
+                print(f"ID: {row[0]}, Email: {row[1]}, Full Name: {repr(row[2])}, First: {row[3]}, Last: {row[4]}")
+
+            print("\n=== EVENTS WITH ORGANIZER INFO ===")
+            # Get events with organizer info
+            event_result = await conn.execute(text("SELECT id, title, organizer_name, organizer_email FROM event LIMIT 10"))
+            event_rows = event_result.fetchall()
+            for row in event_rows:
+                print(f"ID: {row[0]}, Title: {row[1][:40]}..., Organizer: {repr(row[2])}, Email: {repr(row[3])}")
         except Exception as e:
             print(f"Error querying 'user' table: {e}")
 
