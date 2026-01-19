@@ -93,7 +93,8 @@ const NotificationsPage = ({ notifications = [] }) => {
       subtitle: getNotificationSubtitle(activity),
       time: getTimeAgo(activity.date),
       badge: activity.confirmation_id ? true : false,
-      action: getNotificationAction(activity.type)
+      action: getNotificationAction(activity.type),
+      originalActivity: activity
     };
   });
 
@@ -161,7 +162,7 @@ const NotificationsPage = ({ notifications = [] }) => {
         {/* Notifications List */}
         <div className="space-y-3 w-full px-6">
           {filteredNotifications.map((notif, index) => {
-            const originalActivity = notifications[index]; // Get the original activity data
+            const originalActivity = notif.originalActivity; // Get the original activity data
             return (
               <div key={notif.id} className="bg-slate-800 border border-slate-700 rounded-xl shadow-lg py-6 px-16 hover:bg-slate-750 transition-colors">
                 <div className="flex items-start space-x-4">
