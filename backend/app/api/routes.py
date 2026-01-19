@@ -128,16 +128,27 @@ async def delete_event(
     event = await session.get(Event, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-        
+
     # 2. Check Ownership (Simple email check within raw_data)
     # In a real app, strict relationship check is better.
     creator_email = event.raw_data.get("created_by") if event.raw_data else None
     if creator_email != current_user.email:
          raise HTTPException(status_code=403, detail="Not authorized to delete this event")
-         
-    # 3. Delete
+
+    # 3. Store deletion info in raw_data before deleting
+    from datetime import datetime
+    event.raw_data = event.raw_data or {}
+    event.raw_data["deleted_at"] = datetime.now().isoformat()
+    event.raw_data["deleted_by"] = current_user.email
+
+    # Update the event instead of deleting (soft delete for activity tracking)
+    session.add(event)
+    await session.commit()
+
+    # Actually delete the event
     await session.delete(event)
     await session.commit()
+
     return {"status": "success", "message": "Event deleted"}
 
 @router.put("/events/{event_id}", response_model=Event)
@@ -840,7 +851,8 @@ Valid: {event.start_time.strftime('%Y-%m-%d %H:%M %p')}"""
 
     return {
         "qr_code": qr_base64,
-        "event_title": event.title
+        "event_title": event.title,
+        "confirmation_id": registration.confirmation_id
     }
 
 @router.post("/user/registrations/{event_id}/send-qr")
@@ -882,3 +894,111 @@ async def send_event_qr_email_route(
         return {"status": "success", "message": "QR code and PDF sent to your email"}
     else:
         raise HTTPException(status_code=500, detail="Failed to send email")
+
+# --- 9. USER ACTIVITIES ENDPOINT ---
+@router.get("/user/activities")
+async def get_user_activities(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get all activities for the current user (events created, registered, follow activities).
+    """
+    activities = []
+
+    # 1. Get events created by the user
+    created_stmt = select(Event).where(Event.raw_data.contains({"created_by": current_user.email}))
+    created_result = await session.execute(created_stmt)
+    created_events = created_result.scalars().all()
+
+    for event in created_events:
+        activities.append({
+            "type": "event_created",
+            "id": event.id,
+            "title": event.title,
+            "description": event.description,
+            "date": event.created_at,
+            "event_date": event.start_time,
+            "venue": event.venue_name,
+            "event_image": event.image_url,
+            "status": "created"
+        })
+
+    # 2. Get events registered for by the user
+    from sqlalchemy.orm import selectinload
+    reg_stmt = select(UserRegistration).where(
+        UserRegistration.user_email == current_user.email,
+        UserRegistration.status == "SUCCESS"
+    ).options(selectinload(UserRegistration.event))
+
+    reg_result = await session.execute(reg_stmt)
+    registrations = reg_result.scalars().all()
+
+    for reg in registrations:
+        if reg.event:
+            activities.append({
+                "type": "event_registered",
+                "id": reg.event.id,
+                "title": reg.event.title,
+                "description": reg.event.description,
+                "date": reg.registered_at,
+                "event_date": reg.event.start_time,
+                "venue": reg.event.venue_name,
+                "confirmation_id": reg.confirmation_id,
+                "status": "registered"
+            })
+
+    # 3. Get follow activities (people who started following the user)
+    follow_stmt = select(Follow).where(Follow.followed_email == current_user.email)
+    follow_result = await session.execute(follow_stmt)
+    follows = follow_result.scalars().all()
+
+    for follow in follows:
+        # Get follower details
+        follower_stmt = select(User).where(User.email == follow.follower_email)
+        follower_result = await session.execute(follower_stmt)
+        follower = follower_result.scalars().first()
+        if follower:
+            activities.append({
+                "type": "new_follower",
+                "id": follow.id,
+                "title": f"{follower.full_name or follower.email} started following you",
+                "description": f"New follower: {follower.full_name or follower.email}",
+                "date": follow.created_at,
+                "follower_email": follower.email,
+                "follower_name": follower.full_name,
+                "follower_image": follower.profile_image,
+                "status": "followed"
+            })
+
+    # 4. Get unfollow activities (people who unfollowed the user) - Note: This is hard to track without audit logs
+    # For now, we'll skip unfollow activities as they require additional audit logging
+
+    # 5. Get event deletion activities (using soft delete tracking in raw_data)
+    deleted_stmt = select(Event).where(
+        Event.raw_data.contains({"deleted_by": current_user.email})
+    )
+    deleted_result = await session.execute(deleted_stmt)
+    deleted_events = deleted_result.scalars().all()
+
+    for event in deleted_events:
+        if event.raw_data and event.raw_data.get("deleted_at"):
+            activities.append({
+                "type": "event_deleted",
+                "id": event.id,
+                "title": event.title,
+                "description": event.description,
+                "date": event.raw_data["deleted_at"],
+                "event_date": event.start_time,
+                "venue": event.venue_name,
+                "event_image": event.image_url,
+                "status": "deleted"
+            })
+
+    # Sort activities by date (most recent first)
+    activities.sort(key=lambda x: x["date"], reverse=True)
+
+    return {
+        "activities": activities,
+        "total": len(activities)
+    }
