@@ -493,29 +493,21 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                                 </div>
                             </div>
 
-                            {/* HEADERS */}
-                            <div className="grid grid-cols-12 gap-4 px-6 mb-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                <div className="col-span-1">Date</div>
-                                <div className="col-span-5">Event Details</div>
-                                <div className="col-span-2">Location</div>
-                                <div className="col-span-2">Source</div>
-                                <div className="col-span-2 text-right">Action</div>
-                            </div>
-
-                            {/* EVENTS LIST */}
-                            {/* EVENTS LIST */}
-                            <div className="space-y-4">
+                            {/* EVENTS GRID */}
+                            <div>
                                 {loading && <div className="text-center py-10 text-slate-500">Loading events...</div>}
 
                                 {!loading && eventsData.data && eventsData.data.length > 0 && (
-                                    eventsData.data.map((event) => (
-                                        <EventCard
-                                            key={event.id}
-                                            event={event}
-                                            isRegistered={newlyRegisteredIds.includes(event.id)}
-                                            onRegister={() => handleRegisterClick(event)}
-                                        />
-                                    ))
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {eventsData.data.map((event) => (
+                                            <EventCard
+                                                key={event.id}
+                                                event={event}
+                                                isRegistered={newlyRegisteredIds.includes(event.id)}
+                                                onRegister={() => handleRegisterClick(event)}
+                                            />
+                                        ))}
+                                    </div>
                                 )}
 
                                 {!loading && (!eventsData.data || eventsData.data.length === 0) && (
@@ -882,78 +874,91 @@ function EventCard({ event, onRegister, isRegistered }) {
     };
 
     return (
-        <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-slate-800 border border-slate-700 rounded-xl items-center hover:shadow-md transition-shadow hover:shadow-gold-500/10">
-            {/* Date Block - col-span-1 */}
-            <div className="col-span-1 flex justify-center">
-                <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-700 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs font-bold text-red-500 uppercase">
-                        {new Date(event.start_time).toLocaleString('default', { month: 'short' })}
-                    </span>
-                    <span className="text-xl font-bold text-white">
-                        {new Date(event.start_time).getDate()}
-                    </span>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-shadow hover:shadow-primary-500/10">
+            {/* Header with Date */}
+            <div className="relative h-32 bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center">
+                <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold">
+                    {new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+                {event.image_url && (
+                    <img
+                        src={event.image_url}
+                        alt={event.title}
+                        className="w-full h-full object-cover absolute inset-0"
+                    />
+                )}
+                <div className="text-center relative z-10 px-4">
+                    <p className="text-white font-bold text-sm line-clamp-2 overflow-hidden" style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical'
+                    }}>
+                        {event.title}
+                    </p>
                 </div>
             </div>
 
-            {/* Content - col-span-5 */}
-            <div className="col-span-5 min-w-0 pr-4">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${event.is_free ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                        }`}>
+            {/* Content */}
+            <div className="p-4">
+                {/* Badges */}
+                <div className="flex items-center gap-2 mb-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${event.is_free ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                         {event.is_free ? 'Free' : 'Paid'}
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1">
-                        {event.online_event ? 'Online' : 'In Person'}
+                    <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1">
+                        {event.online_event ? '🌐 Online' : '📍 In Person'}
                     </span>
                 </div>
-                <h3 className="text-base font-bold text-white truncate mb-1" title={event.title}>
-                    {event.title}
-                </h3>
-                <p className="text-xs text-slate-500 truncate mb-2">
-                    <span className="text-sky-400 font-medium">By {event.organizer_name || "Unknown"}</span> • {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
-            </div>
 
-            {/* Location - col-span-2 */}
-            <div className="col-span-2 text-xs text-slate-500 hidden md:block">
-                <p className="font-semibold text-slate-300 truncate mb-0.5">
-                    {event.venue_name || (event.online_event ? "Online Event" : "TBD")}
-                </p>
-                <p className="truncate text-slate-400">
-                    {event.venue_address || (event.online_event ? "Link sent upon registration" : "Chennai, India")}
-                </p>
-            </div>
-
-            {/* Source - col-span-2 */}
-            <div className="col-span-2 hidden lg:flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${event.raw_data?.source === 'InfiniteBZ' ? 'bg-primary-500 text-slate-900' : 'bg-slate-700 text-orange-500'
-                    }`}>
-                    {event.raw_data?.source === 'InfiniteBZ' ? 'IB' : 'EB'}
+                {/* Event Details */}
+                <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span className="font-medium text-slate-300">By {event.organizer_name || "Unknown"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span>🕒 {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    {!event.online_event && event.venue_name && (
+                        <div className="flex items-start gap-2 text-xs text-slate-400">
+                            <span>📍</span>
+                            <div>
+                                <p className="font-medium text-slate-300">{event.venue_name}</p>
+                                <p className="text-slate-500">{event.venue_address || "Chennai, India"}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <span className={`text-xs font-medium ${event.raw_data?.source === 'InfiniteBZ' ? 'text-primary-400' : 'text-orange-400'
-                    }`}>
-                    {event.raw_data?.source === 'InfiniteBZ' ? 'InfiniteBZ' : 'Eventbrite'}
-                </span>
-            </div>
 
-            {/* Action - col-span-2 */}
-            <div className="col-span-2 text-right">
+                {/* Source */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${event.raw_data?.source === 'InfiniteBZ' ? 'bg-primary-500 text-white' : 'bg-orange-500 text-white'}`}>
+                            {event.raw_data?.source === 'InfiniteBZ' ? 'IB' : 'EB'}
+                        </div>
+                        <span className={`text-xs font-medium ${event.raw_data?.source === 'InfiniteBZ' ? 'text-primary-400' : 'text-orange-400'}`}>
+                            {event.raw_data?.source === 'InfiniteBZ' ? 'InfiniteBZ' : 'Eventbrite'}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Action Button */}
                 <button
                     onClick={handleClick}
                     disabled={registering || isRegistered}
-                    className={`w-32 py-2.5 rounded-lg uppercase tracking-wider font-bold transition-all inline-flex items-center justify-center gap-2 ${isRegistered
-                        ? 'bg-green-500 text-white cursor-default text-[10px]'
-                        : registering
-                            ? 'bg-slate-700 text-slate-400 cursor-wait text-xs'
-                            : 'bg-primary-500 hover:bg-primary-400 text-slate-900 shadow-lg shadow-primary-500/20 text-xs'
-                        }`}
+                    className={`w-full py-3 rounded-lg uppercase tracking-wider font-bold transition-all inline-flex items-center justify-center gap-2 ${
+                        isRegistered
+                            ? 'bg-green-500 text-white cursor-default'
+                            : registering
+                                ? 'bg-slate-700 text-slate-400 cursor-wait'
+                                : 'bg-primary-500 hover:bg-primary-400 text-white shadow-lg shadow-primary-500/20'
+                    }`}
                 >
                     {event.raw_data?.source === 'InfiniteBZ'
                         ? (
                             isRegistered ? (
-                                <> <span>Registered</span> <CheckCircle2 size={14} /> </>
+                                <> <CheckCircle2 size={16} /> <span>Registered</span> </>
                             ) : (
-                                <> <span>Register</span> <Eye size={14} /> </>
+                                <> <Eye size={16} /> <span>Register</span> </>
                             )
                         )
                         : (registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register')
