@@ -887,19 +887,19 @@ function EventCard({ event, onRegister, isRegistered }) {
                         className="w-full h-full object-cover absolute inset-0"
                     />
                 )}
-                <div className="text-center relative z-10 px-4">
-                    <p className="text-white font-bold text-sm line-clamp-2 overflow-hidden" style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical'
-                    }}>
-                        {event.title}
-                    </p>
-                </div>
             </div>
 
             {/* Content */}
             <div className="p-4">
+                {/* Event Title */}
+                <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 overflow-hidden" style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical'
+                }}>
+                    {event.title}
+                </h3>
+
                 {/* Badges */}
                 <div className="flex items-center gap-2 mb-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${event.is_free ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
