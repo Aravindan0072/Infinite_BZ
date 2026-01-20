@@ -446,6 +446,19 @@ async def list_events(
         limit=limit
     )
 
+@router.get("/events/{event_id}", response_model=Event)
+async def get_event(
+    event_id: int,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get a single event by ID.
+    """
+    event = await session.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
 # --- 3. TRACKING ---
 @router.post("/track-click")
 async def track_click(registration: UserRegistration, session: AsyncSession = Depends(get_session)):

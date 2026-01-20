@@ -38,10 +38,9 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
     const [selectedDate, setSelectedDate] = useState(""); // YYYY-MM-DD
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const [showFullNotifications, setShowFullNotifications] = useState(false);
+    const [activeView, setActiveView] = useState('feed'); // 'feed' or 'my-events' or 'my-registrations' or 'notifications'
     const [userActivities, setUserActivities] = useState([]);
     const [activitiesLoading, setActivitiesLoading] = useState(false);
-    const [notificationsSearch, setNotificationsSearch] = useState("");
 
     useEffect(() => {
         fetchDashboardStats();
@@ -172,7 +171,6 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
     const [showCreateEventModal, setShowCreateEventModal] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedInternalEvent, setSelectedInternalEvent] = useState(null);
-    const [activeView, setActiveView] = useState('feed'); // 'feed', 'my-events', or 'notifications'
 
     const [pendingEventId, setPendingEventId] = useState(null);
     const [pendingEventTitle, setPendingEventTitle] = useState("");
@@ -333,6 +331,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                     if (view === 'dashboard') setActiveView('feed');
                     else if (view === 'my-events') setActiveView('my-events');
                     else if (view === 'my-registrations') setActiveView('my-registrations');
+                    else if (view === 'notifications') setActiveView('notifications');
                     else if (view === 'settings') onNavigate('settings');
                 }}
                 onLogout={onLogout}
@@ -341,170 +340,12 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
 
             {/* MAIN CONTENT */}
             <main className="flex-1 lg:ml-64 p-8">
-                {activeView === 'notifications' ? (
-                    <div className="min-h-screen bg-slate-900">
-                        <div className="w-full">
-                            {/* Header */}
-                            <div className="flex items-center justify-between mb-8 p-6">
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => setActiveView('feed')}
-                                        className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-                                    >
-                                        ← Back to Dashboard
-                                    </button>
-                                    <h1 className="text-3xl font-bold text-white">Notifications</h1>
-                                </div>
-                                <div className="flex items-center space-x-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Search notifications..."
-                                        className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                        value={notificationsSearch}
-                                        onChange={(e) => setNotificationsSearch(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Notifications Content */}
-                            <div className="space-y-3 w-full px-6">
-                                {(() => {
-                                    const getActivityLabel = (type) => {
-                                        switch (type) {
-                                            case 'event_created':
-                                                return 'Event Created';
-                                            case 'event_registered':
-                                                return 'Event Registered';
-                                            case 'new_follower':
-                                                return 'New Follower';
-                                            case 'event_deleted':
-                                                return 'Event Deleted';
-                                            default:
-                                                return 'Activity';
-                                        }
-                                    };
-
-                                    const getActivityIcon = (type) => {
-                                        switch (type) {
-                                            case 'event_created':
-                                                return <Plus size={16} />;
-                                            case 'event_registered':
-                                                return <CheckCircle2 size={16} />;
-                                            case 'new_follower':
-                                                return <UserPlus size={16} />;
-                                            case 'event_deleted':
-                                                return <Trash2 size={16} />;
-                                            default:
-                                                return <Bell size={16} />;
-                                        }
-                                    };
-
-                                    const getActivityColors = (type) => {
-                                        switch (type) {
-                                            case 'event_created':
-                                                return 'bg-primary-500/20 text-primary-400';
-                                            case 'event_registered':
-                                                return 'bg-green-500/20 text-green-400';
-                                            case 'new_follower':
-                                                return 'bg-blue-500/20 text-blue-400';
-                                            case 'event_deleted':
-                                                return 'bg-red-500/20 text-red-400';
-                                            default:
-                                                return 'bg-slate-500/20 text-slate-400';
-                                        }
-                                    };
-
-                                    return userActivities
-                                        .filter(activity =>
-                                            notificationsSearch === '' ||
-                                            activity.title?.toLowerCase().includes(notificationsSearch.toLowerCase()) ||
-                                            getActivityLabel(activity.type)?.toLowerCase().includes(notificationsSearch.toLowerCase()) ||
-                                            activity.follower_name?.toLowerCase().includes(notificationsSearch.toLowerCase()) ||
-                                            activity.follower_email?.toLowerCase().includes(notificationsSearch.toLowerCase())
-                                        )
-                                        .map((activity, index) => (
-                                            <div key={index} className="bg-slate-800 border border-slate-700 rounded-xl shadow-lg py-6 px-16 hover:bg-slate-750 transition-colors">
-                                                <div className="flex items-start space-x-4">
-                                                    {activity.type === 'new_follower' && activity.follower_image ? (
-                                                        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                                                            <img
-                                                                src={activity.follower_image}
-                                                                alt={activity.follower_name || activity.follower_email}
-                                                                className="w-full h-full object-cover"
-                                                                onError={(e) => {
-                                                                    e.target.style.display = 'none';
-                                                                    const fallbackDiv = e.target.nextSibling;
-                                                                    if (fallbackDiv) {
-                                                                        fallbackDiv.style.display = 'flex';
-                                                                    }
-                                                                }}
-                                                                style={{ display: 'block' }}
-                                                            />
-                                                            <div className={`w-full h-full rounded-full flex items-center justify-center text-xl font-bold shadow-md ${getActivityColors(activity.type)}`} style={{ display: 'none' }}>
-                                                                {getIcon(activity.type)}
-                                                            </div>
-                                                        </div>
-                                                    ) : activity.type === 'event_created' && activity.event_image ? (
-                                                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                                                            <img
-                                                                src={activity.event_image}
-                                                                alt={activity.title}
-                                                                className="w-full h-full object-cover"
-                                                                onError={(e) => {
-                                                                    e.target.style.display = 'none';
-                                                                    const fallbackDiv = e.target.nextSibling;
-                                                                    if (fallbackDiv) {
-                                                                        fallbackDiv.style.display = 'flex';
-                                                                    }
-                                                                }}
-                                                                style={{ display: 'block' }}
-                                                            />
-                                                            <div className={`w-full h-full rounded-full flex items-center justify-center text-xl font-bold shadow-md ${getActivityColors(activity.type)}`} style={{ display: 'none' }}>
-                                                                {getIcon(activity.type)}
-                                                            </div>
-                                                        </div>
-                                                    ) : activity.type === 'event_registered' && activity.image_url ? (
-                                                        <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-                                                            <img
-                                                                src={activity.image_url}
-                                                                alt={activity.title}
-                                                                className="w-full h-full object-cover"
-                                                                onError={(e) => {
-                                                                    e.target.style.display = 'none';
-                                                                    const fallbackDiv = e.target.nextSibling;
-                                                                    if (fallbackDiv) {
-                                                                        fallbackDiv.style.display = 'flex';
-                                                                    }
-                                                                }}
-                                                                style={{ display: 'block' }}
-                                                            />
-                                                            <div className={`w-full h-full rounded-full flex items-center justify-center text-xl font-bold shadow-md ${getActivityColors(activity.type)}`} style={{ display: 'none' }}>
-                                                                {getIcon(activity.type)}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getActivityColors(activity.type)}`}>
-                                                            {getActivityIcon(activity.type)}
-                                                        </div>
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between">
-                                                            <h3 className="text-lg font-semibold text-white truncate">{activity.title}</h3>
-                                                            <span className="text-sm text-slate-400 ml-2">{new Date(activity.date).toLocaleDateString()}</span>
-                                                        </div>
-                                                        <p className="mt-1 text-sm text-slate-300">{getActivityLabel(activity.type)}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ));
-                                })()}
-                            </div>
-                        </div>
-                    </div>
-                ) : activeView === 'my-events' ? (
+                {activeView === 'my-events' ? (
                     <MyEvents onCreateNew={() => onNavigate('create-event')} />
                 ) : activeView === 'my-registrations' ? (
                     <MyRegistrationsPage onNavigate={() => setActiveView('feed')} user={user} />
+                ) : activeView === 'notifications' ? (
+                    <NotificationsPage notifications={userActivities} />
                 ) : (
                     <>
                         {/* Header */}
@@ -946,20 +787,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                     </>
                 )}
 
-                {/* FULL SCREEN NOTIFICATIONS PAGE */}
-                {showFullNotifications && (
-                    <div className="fixed inset-0 z-50 bg-gray-50 animate-in fade-in duration-200">
-                        <button
-                            onClick={() => setShowFullNotifications(false)}
-                            className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 transition-colors bg-white rounded-full p-2 shadow-md"
-                        >
-                            <X size={24} />
-                        </button>
-                        <div className="h-full overflow-y-auto">
-                            <NotificationsPage notifications={userActivities} />
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Refresh registrations when navigating to My Registrations */}
                 {activeView === 'my-registrations' && (

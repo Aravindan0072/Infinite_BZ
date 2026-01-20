@@ -10,6 +10,9 @@ const NotificationsPage = ({ notifications = [] }) => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedEventQR, setSelectedEventQR] = useState(null);
   const [qrLoading, setQrLoading] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [eventLoading, setEventLoading] = useState(false);
 
   // Transform userActivities data to notification format
   const transformedNotifications = notifications.map((activity, index) => {
@@ -93,8 +96,7 @@ const NotificationsPage = ({ notifications = [] }) => {
       subtitle: getNotificationSubtitle(activity),
       time: getTimeAgo(activity.date),
       badge: activity.confirmation_id ? true : false,
-      action: getNotificationAction(activity.type),
-      originalActivity: activity
+      action: getNotificationAction(activity.type)
     };
   });
 
@@ -132,6 +134,30 @@ const NotificationsPage = ({ notifications = [] }) => {
     }
   };
 
+  const fetchEventDetails = async (eventId) => {
+    setEventLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/v1/events/${eventId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedEvent(data);
+        setShowEventModal(true);
+      } else {
+        console.error('Failed to fetch event details');
+        alert('Failed to load event details. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching event details:', error);
+      alert('An error occurred while loading the event details.');
+    } finally {
+      setEventLoading(false);
+    }
+  };
+
   const getIcon = (type) => {
     const icons = {
       success: '✅',
@@ -143,10 +169,20 @@ const NotificationsPage = ({ notifications = [] }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <>
+      <style>{`
+        .no-scroll::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scroll {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+      <div className="min-h-screen bg-slate-900 overflow-y-scroll max-h-screen no-scroll">
       <div className="w-full">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8 p-6">
+        <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-white">Notifications {unread > 0 && <span className="ml-2 bg-primary-500 text-slate-900 px-2 py-1 rounded-full text-sm font-bold">{unread}</span>}</h1>
           <div className="flex items-center space-x-4">
             <input
@@ -160,11 +196,11 @@ const NotificationsPage = ({ notifications = [] }) => {
         </div>
 
         {/* Notifications List */}
-        <div className="space-y-3 w-full px-6">
+        <div className="space-y-6 w-full">
           {filteredNotifications.map((notif, index) => {
-            const originalActivity = notif.originalActivity; // Get the original activity data
+            const originalActivity = notifications[index]; // Get the original activity data
             return (
-              <div key={notif.id} className="bg-slate-800 border border-slate-700 rounded-xl shadow-lg py-6 px-16 hover:bg-slate-750 transition-colors">
+              <div key={notif.id} className="bg-slate-800 border border-slate-700 rounded-xl shadow-lg py-6 px-6 hover:bg-slate-750 transition-colors">
                 <div className="flex items-start space-x-4">
                   <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
                     <img
@@ -208,6 +244,8 @@ const NotificationsPage = ({ notifications = [] }) => {
                           setShowFollowerModal(true);
                         } else if (notif.action === 'View Ticket' && originalActivity.type === 'event_registered') {
                           fetchQRCode(originalActivity.id);
+                        } else if (notif.action === 'View Event' && (originalActivity.type === 'event_created' || originalActivity.type === 'event_registered')) {
+                          fetchEventDetails(originalActivity.id);
                         } else {
                           markAsRead(notif.id);
                         }
@@ -221,13 +259,6 @@ const NotificationsPage = ({ notifications = [] }) => {
               </div>
             );
           })}
-        </div>
-
-        {/* Load More Button */}
-        <div className="mt-6 text-center">
-          <button className="text-primary-400 hover:text-primary-300 font-medium text-sm">
-            Load older notifications
-          </button>
         </div>
 
         {/* Follower Profile Modal */}
@@ -358,8 +389,72 @@ const NotificationsPage = ({ notifications = [] }) => {
             </div>
           </>
         )}
+
+        {/* Event Details Modal */}
+        {showEventModal && selectedEvent && (
+          <>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                  <h3 className="text-xl font-bold text-white">Event Details</h3>
+                  <button
+                    onClick={() => {
+                      setShowEventModal(false);
+                      setSelectedEvent(null);
+                    }}
+                    className="p-2 hover:bg-slate-700 rounded-full transition-colors"
+                  >
+                    <X size={20} className="text-slate-400" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Event Name</label>
+                      <div className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                        {selectedEvent.title || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Organizer</label>
+                      <div className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                        {selectedEvent.organizer_name || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Location</label>
+                      <div className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                        {selectedEvent.venue_name || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Date</label>
+                      <div className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                        {selectedEvent.start_time ? new Date(selectedEvent.start_time).toLocaleDateString() : 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Time</label>
+                      <div className="bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white">
+                        {selectedEvent.start_time ? new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
+    </>
   );
 };
 
