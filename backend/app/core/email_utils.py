@@ -194,7 +194,7 @@ def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str,
     # QR Code title
     c.setFillColorRGB(0.08, 0.55, 0.67)  # Primary color
     c.setFont("Helvetica-Bold", 12)
-    c.drawCentredString(width/2, y_pos-15, "SCAN FOR VERIFICATION")
+    c.drawCentredString(width/2, y_pos-5, "SCAN FOR VERIFICATION")
 
     # QR Code
     if qr_base64:
@@ -214,9 +214,9 @@ def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str,
     # Footer with InfiniteBZ branding
     c.setFillColorRGB(0.08, 0.55, 0.67)  # Primary color
     c.setFont("Helvetica-Bold", 10)
-    c.drawCentredString(width/2, 30, "Thank you for using InfiniteBZ!")
+    c.drawCentredString(width/2 + 20, 30, "Thank you for using InfiniteBZ!")
     c.setFont("Helvetica", 8)
-    c.drawCentredString(width/2, 15, "Event Management System")
+    c.drawCentredString(width/2 + 20, 15, "Event Management System")
 
     c.save()
     buffer.seek(0)

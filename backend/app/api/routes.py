@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import delete
 from typing import List, Optional
 import shutil
 import os
@@ -144,6 +145,10 @@ async def delete_event(
     # Update the event instead of deleting (soft delete for activity tracking)
     session.add(event)
     await session.commit()
+
+    # Delete all registrations for this event first to avoid foreign key constraint
+    delete_reg_stmt = delete(UserRegistration).where(UserRegistration.event_id == event_id)
+    await session.execute(delete_reg_stmt)
 
     # Actually delete the event
     await session.delete(event)
