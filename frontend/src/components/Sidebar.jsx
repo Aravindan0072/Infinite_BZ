@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, TrendingUp, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, TrendingUp, Settings, LogOut, ScanLine } from 'lucide-react';
 
 export default function Sidebar({ activePage, onNavigate, onLogout, onCreateClick }) {
     return (
@@ -39,6 +39,12 @@ export default function Sidebar({ activePage, onNavigate, onLogout, onCreateClic
                     label="Settings"
                     active={activePage === 'settings'}
                     onClick={() => onNavigate('settings')}
+                />
+                <NavItem
+                    icon={<ScanLine size={20} />}
+                    label="Check-in Tool"
+                    active={activePage === 'check-in'}
+                    onClick={() => onNavigate('check-in')}
                 />
             </nav>
 

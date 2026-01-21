@@ -72,3 +72,45 @@ async def send_reset_email(email: EmailStr, otp: str):
     except Exception as e:
         print(f"EXTREME ERROR: Failed to send email via SMTP: {e}")
         return False
+
+async def send_ticket_email(email: EmailStr, name: str, event_title: str, ticket_path: str):
+    """
+    Sends the PDF Ticket via Real SMTP using fastapi-mail.
+    """
+    if not ENABLE_EMAIL:
+        print(f"FAILED TO SEND TICKET to {email}: Email credentials not configured.")
+        return False
+
+    print(f"Sending Ticket to {email} via {MAIL_SERVER}...")
+    try:
+        body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
+                <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;">
+                    <h2 style="color: #0F172A;">Your Ticket for {event_title}</h2>
+                    <p>Hi {name},</p>
+                    <p>Thank you for registering! We are excited to see you.</p>
+                    <p><strong>Please find your official ticket attached to this email.</strong></p>
+                    <p>Simply show the QR code at the entrance.</p>
+                    <br/>
+                    <p style="font-size: 12px; color: #888;">Powered by Infinite BZ Event Platform</p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        message = MessageSchema(
+            subject=f"Your Ticket for {event_title}",
+            recipients=[email],
+            body=body,
+            subtype=MessageType.html,
+            attachments=[ticket_path] # fastapi-mail handles attachments simply like this
+        )
+        
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        print("Ticket Email sent successfully.")
+        return True
+    except Exception as e:
+        print(f"EXTREME ERROR: Failed to send ticket email via SMTP: {e}")
+        return False

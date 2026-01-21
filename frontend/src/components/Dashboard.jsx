@@ -245,7 +245,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                 onNavigate={(view) => {
                     if (view === 'dashboard') setActiveView('feed');
                     else if (view === 'my-events') setActiveView('my-events');
-                    else if (view === 'settings') onNavigate('settings');
+                    else onNavigate(view); // Pass 'settings', 'check-in', etc. to parent
                 }}
                 onLogout={onLogout}
                 onCreateClick={() => onNavigate('create-event')}
@@ -663,12 +663,7 @@ function EventCard({ event, onRegister, isRegistered }) {
                             : 'bg-primary-500 hover:bg-primary-400 text-slate-900 shadow-lg shadow-primary-500/20'
                         }`}
                 >
-                    {event.raw_data?.source === 'InfiniteBZ'
-                        ? (
-                            <> <span>View</span> <Eye size={14} /> </>
-                        )
-                        : (registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register')
-                    }
+                    {registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register'}
                 </button>
             </div>
         </div>

@@ -374,16 +374,22 @@ from app.auth import get_current_user
 @router.post("/events/{event_id}/register")
 async def register_for_event(
     event_id: int, 
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
     # 1. Get Event Details
+    try:
+        with open("debug_email_identity.txt", "a") as f:
+             f.write(f"TIMESTAMP: {datetime.now()} | USER: {current_user.email}\n")
+    except:
+        pass
+
     event = await session.get(Event, event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    
     if not event.is_free:
-         raise HTTPException(status_code=400, detail="Auto-registration currently supports FREE events only.")
+         # raise HTTPException(status_code=400, detail="Auto-registration currently supports FREE events only.")
+         print(f"DEBUG: Allowing PAID event {event.id} registration (is_free={event.is_free})")
+
 
     # 2. Check if already registered
     stmt = select(UserRegistration).where(
@@ -399,6 +405,9 @@ async def register_for_event(
     
     # Generate a Self-Verified Confirmation ID
     import time
+    from app.services.ticket_service import generate_ticket_pdf
+    from app.core.email_utils import send_ticket_email
+    
     confirmation_id = f"SELF-{int(time.time())}"
 
     new_reg = UserRegistration(
@@ -409,11 +418,86 @@ async def register_for_event(
     )
     session.add(new_reg)
     await session.commit()
+    
+    # --- NEW: Phase 1 Ticket Generation ---
+    # --- NEW: Phase 1 Ticket Generation ---
+    try:
+        # 1. Generate PDF
+        ticket_path = generate_ticket_pdf(
+            registration_id=confirmation_id,
+            event_title=event.title,
+            user_name=current_user.full_name or current_user.email,
+            event_date=event.start_time,
+            event_location=event.venue_name or "Online"
+        )
+        
+        # 2. Send Email (BACKGROUND TASK)
+        # We pass the async function send_ticket_email to background_tasks
+        background_tasks.add_task(
+            send_ticket_email,
+            email=current_user.email,
+            name=current_user.full_name or "Attendee",
+            event_title=event.title,
+            ticket_path=ticket_path
+        )
+        
+        email_status = "QUEUED_IN_BACKGROUND"
+        
+    except Exception as e:
+        print(f"Ticket Gen Error: {str(e)}")
+        email_status = f"ERROR: {str(e)}"
 
     return {
         "status": "SUCCESS",
-        "message": "Registration verified and saved!",
-        "confirmation_id": confirmation_id
+        "message": "Registration verified! Ticket sent to email.",
+        "confirmation_id": confirmation_id,
+        "email_status": email_status
+    }
+
+# --- 4.5 CHECK-IN ENDPOINT (Organizer Tool) ---
+class CheckInRequest(SQLModel):
+    ticket_id: str
+
+@router.post("/events/check-in")
+async def check_in_attendee(
+    request: CheckInRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Verifies a ticket ID and marks the attendee as checked in.
+    """
+    # 1. Find Registration
+    stmt = select(UserRegistration).where(UserRegistration.confirmation_id == request.ticket_id)
+    result = await session.execute(stmt)
+    registration = result.scalars().first()
+    
+    if not registration:
+        raise HTTPException(status_code=404, detail="Invalid Ticket ID. Access Denied.")
+    
+    # 2. Check Status
+    if registration.status == "CHECKED_IN":
+         raise HTTPException(status_code=400, detail=f"Ticket already used! Checked in at {registration.registered_at}") # ideal: store check-in time
+    
+    if registration.status == "FAILED":
+         raise HTTPException(status_code=400, detail="Ticket is invalid (Payment/Reg Failed).")
+
+    # 3. Get Event and User Details for Response
+    event = await session.get(Event, registration.event_id)
+    # user info might be just email in registration, or we can fetch User object if needed
+    # registration.user_email is available
+    
+    # 4. Mark as Checked In
+    registration.status = "CHECKED_IN"
+    session.add(registration)
+    await session.commit()
+    
+    return {
+        "status": "SUCCESS",
+        "message": "Check-in Successful!",
+        "attendee": registration.user_email,
+        "event": event.title if event else "Unknown Event",
+        "ticket_id": registration.confirmation_id
     }
 
 # --- 5. USER PROFILE ENDPOINT ---

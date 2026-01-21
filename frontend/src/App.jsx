@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import CreateEventPage from './components/CreateEventPage';
 import SettingsPage from './components/SettingsPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import OrganizerCheckIn from './components/OrganizerCheckIn';
 
 export default function App() {
   const [events, setEvents] = useState([]);
@@ -193,6 +194,17 @@ export default function App() {
       {currentView === 'settings' && (
         <SettingsPage
           user={user}
+          onNavigate={(view) => {
+            window.scrollTo(0, 0);
+            setCurrentView(view);
+          }}
+        />
+      )}
+
+      {currentView === 'check-in' && (
+        <OrganizerCheckIn
+          user={user}
+          onLogout={handleLogout}
           onNavigate={(view) => {
             window.scrollTo(0, 0);
             setCurrentView(view);

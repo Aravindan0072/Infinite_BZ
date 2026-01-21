@@ -14,8 +14,8 @@ from sqlalchemy.future import select
 # Import scraper function
 from app.services.scraper import fetch_event_details_api
 from app.models.schemas import Event
+from app.core.database import DATABASE_URL
 
-DATABASE_URL = "postgresql+asyncpg://postgres:Sankar%40722001@localhost:5432/infinitetechai"
 engine = create_async_engine(DATABASE_URL)
 
 async def update_all_events():
@@ -63,6 +63,16 @@ async def update_all_events():
                 # Check Venue Address
                 if event.venue_address != api_data['venue_address']:
                      event.venue_address = api_data['venue_address']
+
+                # Check Start Time
+                if event.start_time != api_data['start_time']:
+                    changes.append(f"Start Time: {event.start_time} -> {api_data['start_time']}")
+                    event.start_time = api_data['start_time']
+
+                # Check End Time
+                if event.end_time != api_data['end_time']:
+                    changes.append(f"End Time: {event.end_time} -> {api_data['end_time']}")
+                    event.end_time = api_data['end_time']
 
                 if changes:
                     print(f"  UPDATED: {', '.join(changes)}")
