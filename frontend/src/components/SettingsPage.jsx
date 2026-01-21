@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check, X } from 'lucide-react';
+import Sidebar from './Sidebar';
 
 export default function SettingsPage({ user, onNavigate }) {
   const [formData, setFormData] = useState({
@@ -16,6 +17,9 @@ export default function SettingsPage({ user, onNavigate }) {
   const [profileImagePreview, setProfileImagePreview] = useState(null);
 
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [followingData, setFollowingData] = useState([]);
+  const [followersCount, setFollowersCount] = useState(0);
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = () => {
@@ -52,8 +56,16 @@ export default function SettingsPage({ user, onNavigate }) {
 
       // Then, fetch existing profile data from database
       fetchProfileData();
+      fetchFollowersData();
     }
   }, [user]);
+
+  // Fetch followers data when modal is opened
+  useEffect(() => {
+    if (showFollowingModal) {
+      fetchFollowersData();
+    }
+  }, [showFollowingModal]);
 
   const fetchProfileData = async () => {
     try {
@@ -114,6 +126,26 @@ export default function SettingsPage({ user, onNavigate }) {
     }
   };
 
+  const fetchFollowersData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/v1/user/followers', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFollowingData(data.followers || []);
+        setFollowersCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching followers data:', error);
+    }
+  };
+
   const handleSave = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -157,20 +189,20 @@ export default function SettingsPage({ user, onNavigate }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 font-sans">
-      {/* Main Content */}
-      <main className="p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-            >
-              <ArrowLeft size={16} />
-              Back to Dashboard
-            </button>
-            <h1 className="text-2xl font-bold text-white">Settings</h1>
-          </div>
+    <div className="min-h-screen flex font-sans">
+      <Sidebar
+        activePage="settings"
+        onNavigate={(view) => {
+          if (view === 'dashboard' || view === 'my-events' || view === 'my-registrations') onNavigate('dashboard');
+          else if (view === 'settings') onNavigate('settings');
+        }}
+        onLogout={() => onNavigate('landing')}
+        onCreateClick={() => onNavigate('create-event')}
+      />
+
+      <main className="flex-1 lg:ml-64 p-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">Settings</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -215,6 +247,9 @@ export default function SettingsPage({ user, onNavigate }) {
                       Image selected
                     </div>
                   )}
+                  <div className="text-xs text-slate-400 mt-2 cursor-pointer hover:text-slate-300" onClick={() => setShowFollowingModal(true)}>
+                    {followersCount} following
+                  </div>
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-1">
                   {formData.firstName || formData.lastName ?
@@ -390,6 +425,65 @@ export default function SettingsPage({ user, onNavigate }) {
             </div>
           </div>
         </div>
+
+        {/* Following Modal */}
+        {showFollowingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-slate-800 w-full max-w-md mx-4 rounded-3xl shadow-2xl border border-slate-700/50 max-h-[80vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                <h3 className="text-xl font-bold text-white">Followers ({followersCount})</h3>
+                <button
+                  onClick={() => setShowFollowingModal(false)}
+                  className="p-2 hover:bg-slate-700 rounded-full transition-colors"
+                >
+                  <X size={20} className="text-slate-400" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                {followingData.length > 0 ? (
+                  <div className="space-y-4">
+                    {followingData.map((user, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-xl">
+                        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
+                          {user.profile_image ? (
+                            <img
+                              src={user.profile_image}
+                              alt={user.full_name || user.email}
+                              className="w-full h-full object-contain bg-slate-700"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                              {user.first_name && user.last_name ?
+                                `${user.first_name[0]}${user.last_name[0]}`.toUpperCase() :
+                                user.email[0].toUpperCase()
+                              }
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">
+                            {user.first_name && user.last_name ?
+                              `${user.first_name} ${user.last_name}` :
+                              user.full_name || 'User'
+                            }
+                          </p>
+                          <p className="text-slate-400 text-xs">{user.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-slate-400 text-sm">No followers yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

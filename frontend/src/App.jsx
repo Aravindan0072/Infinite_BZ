@@ -5,6 +5,7 @@ import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import CreateEventPage from './components/CreateEventPage';
 import SettingsPage from './components/SettingsPage';
+import MyRegistrationsPage from './components/MyRegistrationsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import OrganizerCheckIn from './components/OrganizerCheckIn';
 
@@ -210,6 +211,9 @@ export default function App() {
             setCurrentView(view);
           }}
         />
+      {currentView === 'my-registrations' && (
+        <MyRegistrationsPage />
+
       )}
     </>
   );

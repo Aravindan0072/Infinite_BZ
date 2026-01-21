@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Calendar, MapPin, Clock, User, Mail, Ticket, Globe, X, Share2, Heart,
     CheckCircle2, ArrowRight, Linkedin, Twitter, Shield, Star, LayoutGrid
@@ -8,8 +8,43 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
     if (!isOpen || !event) return null;
 
     const [activeTab, setActiveTab] = useState('about');
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [isLoadingFollow, setIsLoadingFollow] = useState(false);
+    const [isLoadingCheckFollow, setIsLoadingCheckFollow] = useState(false);
     const isInternal = event.raw_data?.source === 'InfiniteBZ';
     const isOnline = event.online_event || event.mode === 'online';
+
+    // Check if user is already following this organizer when event changes
+    useEffect(() => {
+        if (event?.organizer_email) {
+            checkFollowStatus();
+        }
+    }, [event?.organizer_email]);
+
+    const checkFollowStatus = async () => {
+        if (!event?.organizer_email) return;
+
+        setIsLoadingCheckFollow(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:8000/api/v1/user/following`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const isFollowingOrganizer = data.following.some(user => user.email === event.organizer_email);
+                setIsFollowing(isFollowingOrganizer);
+            }
+        } catch (error) {
+            console.error('Error checking follow status:', error);
+        } finally {
+            setIsLoadingCheckFollow(false);
+        }
+    };
 
     // Mock Data for Enhanced UI
     const speakers = [
@@ -24,6 +59,83 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
         { time: "01:00 PM", title: "Lunch Break", desc: "Gourmet lunch provided at the venue." },
         { time: "02:30 PM", title: "Workshops", desc: "Hands-on sessions on AI, Marketing, and Sales." }
     ];
+
+    const handleFollow = async () => {
+        console.log('=== FOLLOW BUTTON CLICKED ===');
+        console.log('Event object:', event);
+        console.log('Organizer email:', event?.organizer_email);
+        console.log('Organizer name:', event?.organizer_name);
+        console.log('Current following status:', isFollowing);
+
+        // Use organizer_email if available, otherwise try to find user by name
+        let targetIdentifier = event?.organizer_email;
+
+        if (!targetIdentifier) {
+            // Fallback: try to use organizer name to find the user
+            console.log('No organizer email, trying to find user by name');
+            targetIdentifier = event?.organizer_name;
+        }
+
+        if (!targetIdentifier) {
+            console.error('❌ ERROR: No organizer email or name available');
+            alert('Cannot identify the event organizer. Please try a different event.');
+            return;
+        }
+
+        // If already following, don't do anything (one-way follow)
+        if (isFollowing) {
+            console.log('ℹ️ Already following this organizer, no action needed');
+            return;
+        }
+
+        setIsLoadingFollow(true);
+        console.log('⏳ Starting follow request...');
+
+        try {
+            const token = localStorage.getItem('token');
+            console.log('Token exists:', !!token);
+
+            if (!token) {
+                console.error('❌ ERROR: No authentication token found');
+                alert('You must be logged in to follow organizers.');
+                return;
+            }
+
+            const url = `http://localhost:8000/api/v1/user/follow/${encodeURIComponent(targetIdentifier)}`;
+            console.log('🌐 Making POST request to:', url);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            console.log('📡 Response status:', response.status);
+            console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
+            if (response.ok) {
+                console.log('✅ Successfully followed organizer!');
+                setIsFollowing(true);
+
+                // Show success message
+                alert('Successfully followed the organizer!');
+            } else {
+                const errorText = await response.text();
+                console.error('❌ Failed to follow user:', response.status, errorText);
+
+                // Show error to user
+                alert(`Failed to follow organizer. Error: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error('❌ Network error following user:', error);
+            alert('Network error occurred. Please check your connection and try again.');
+        } finally {
+            setIsLoadingFollow(false);
+            console.log('🏁 Follow request completed');
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 bg-slate-900 animate-in fade-in duration-200 overflow-hidden">
@@ -99,6 +211,45 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                             {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
+
+                                    <button
+                                        onClick={() => {
+                                            if (!isRegistered) {
+                                                onRegister(event);
+                                                // onClose(); // Optional: keep open to show success state
+                                            }
+                                        }}
+                                        disabled={isRegistered}
+                                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${isRegistered
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/50 cursor-default'
+                                            : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/50 hover:-translate-y-0.5'
+                                            }`}
+                                    >
+                                        {isRegistered ? (
+                                            <> <CheckCircle2 className="animate-in zoom-in spin-in-180" /> Registered </>
+                                        ) : (
+                                            <> <Ticket className="animate-pulse" /> Auto-Register </>
+                                        )}
+                                    </button>
+
+                                    {/* Follow Button - Moved here under Auto-Register */}
+                                    <div className="mt-4 pt-4 border-t border-slate-700/50">
+                                        <button
+                                            onClick={handleFollow}
+                                            disabled={isLoadingFollow}
+                                            className={`w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 ${isFollowing
+                                                ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                                                : 'bg-slate-700/50 text-white hover:bg-slate-600 border border-slate-600/50'
+                                                }`}
+                                        >
+                                            {isLoadingFollow ? 'Loading...' : isFollowing ? '✓ Followed' : '+ Follow Organizer'}
+                                        </button>
+                                    </div>
+
+                                    <p className="text-center text-xs text-slate-500 mt-3">
+                                        One-click registration powered by InfiniteBZ
+                                    </p>
+
                                 </div>
                                 <div className="flex items-start gap-4">
                                     <div className="p-3 rounded-lg bg-slate-800 text-purple-500 border border-slate-700">
@@ -113,6 +264,29 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                             {event.venue_address || "Link available after registration"}
                                         </p>
                                     </div>
+
+
+                                    {/* Mini Map Placeholder */}
+                                    <div className="h-32 bg-slate-700/30 rounded-xl w-full relative overflow-hidden group cursor-pointer">
+                                        <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/80.2376,13.0674,13,0/300x200?access_token=PLACEHOLDER')] bg-cover opacity-50 grayscale group-hover:grayscale-0 transition-all" />
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg shadow-lg text-xs font-bold flex items-center gap-1 group-hover:scale-110 transition-transform">
+                                                <MapPin size={12} className="text-red-500" /> View Map
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ORGANIZER CARD */}
+                                <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                                        {event.organizer_name?.[0] || 'C'}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-bold text-white text-sm">{event.organizer_name || "Community Host"}</p>
+                                        <p className="text-xs text-slate-400">Organized by {event.organizer_name?.split(' ')[0]}</p>
+                                    </div>
+
                                 </div>
                             </div>
 
