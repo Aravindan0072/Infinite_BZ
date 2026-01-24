@@ -7,6 +7,7 @@ import CreateEventPage from './components/CreateEventPage';
 import SettingsPage from './components/SettingsPage';
 import MyRegistrationsPage from './components/MyRegistrationsPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import ChatWidget from './components/ChatWidget';
 
 export default function App() {
   const [events, setEvents] = useState([]);
@@ -92,15 +93,9 @@ export default function App() {
             setCurrentView('feed');
           }}
           onLogin={() => {
-            if (user) {
-              // If already logged in, go to Dashboard
-              window.scrollTo(0, 0);
-              setCurrentView('dashboard');
-            } else {
-              setAuthMode('login');
-              window.scrollTo(0, 0);
-              setCurrentView('auth');
-            }
+            setAuthMode('login');
+            window.scrollTo(0, 0);
+            setCurrentView('auth');
           }}
           onSignup={() => {
             setAuthMode('signup');
@@ -203,6 +198,11 @@ export default function App() {
 
       {currentView === 'my-registrations' && (
         <MyRegistrationsPage />
+      )}
+      {currentView !== 'auth' && currentView !== 'landing' && (
+        <ErrorBoundary>
+          <ChatWidget />
+        </ErrorBoundary>
       )}
     </>
   );

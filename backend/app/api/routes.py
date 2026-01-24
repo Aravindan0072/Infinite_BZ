@@ -7,10 +7,10 @@ import shutil
 import os
 
 from app.core.database import get_session
-from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate, Follow
+from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate, Follow, ContactForm
 from app.services.scraper import scrape_events_playwright # Async import
 from app.auth import get_current_user
-from app.core.email_utils import generate_qr_code, send_event_ticket_email
+from app.core.email_utils import generate_qr_code, send_event_ticket_email, send_contact_form_email
 from sqlmodel import SQLModel
 import uuid
 
@@ -1019,4 +1019,18 @@ async def get_user_activities(
     return {
         "activities": activities,
         "total": len(activities)
+    }
+
+# --- 10. CONTACT FORM ---
+@router.post("/contact")
+async def contact_form(form_data: ContactForm, background_tasks: BackgroundTasks):
+    """
+    Handle contact form submissions.
+    """
+    # Send email in background to avoid blocking the response
+    background_tasks.add_task(send_contact_form_email, form_data.dict())
+
+    return {
+        "status": "success",
+        "message": "Message received! We will get in touch shortly."
     }
