@@ -32,6 +32,35 @@ def fetch_event_details_api(event_id: str) -> Optional[Dict]:
             start_time = datetime.fromisoformat(start_str) if start_str else datetime.now()
             end_time = datetime.fromisoformat(end_str) if end_str else start_time + timedelta(hours=2)
             
+            # --- Recurring Event Fix ---
+            # If start_time is in the past, and end_time is in the future,
+            # and the duration is long (> 7 days), assume it's a series and find the next occurrence.
+            # We assume it repeats WEEKLY on the same weekday.
+            now = datetime.now(start_time.tzinfo) # Use same timezone
+            
+            if start_time < now and end_time > now:
+                duration = end_time - start_time
+                if duration.days > 7:
+                    # It's likely a series. Find next occurrence.
+                    # 1. Calculate how many weeks passed
+                    days_since_start = (now - start_time).days
+                    weeks_passed = (days_since_start // 7) + 1
+                    
+                    next_start = start_time + timedelta(weeks=weeks_passed)
+                    
+                    # Ensure we haven't passed the end (though condition end_time > now ensures at least one slot left?)
+                    if next_start < end_time:
+                         print(f"  [Recurrence Fix] Moving start from {start_time.date()} to next occurrence: {next_start.date()}")
+                         start_time = next_start
+                         # We should probably adjust end_time too to be the session end, 
+                         # but we don't know the session duration if the API gives us Series End.
+                         # However, leaving Series End as end_time usually works for "is_active" checks.
+                         # But for UI display, we might want "Session End".
+                         # If we don't know session duration, maybe defaulting to start + 2 hours is safer?
+                         # Or just keep end_time as is (user UI check doesn't show end time?).
+                         # Let's keep end_time as is for now, or maybe cap it?
+                         pass
+            
             # --- Parse Is_Free ---
             is_free = data.get("is_free", False)
             online_event = data.get("online_event", False)

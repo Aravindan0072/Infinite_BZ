@@ -71,6 +71,21 @@ async def scheduled_scraper_task():
         await session.commit()
         print(f"Database Update: Saved {added_count} new events. Updated {updated_count} existing events.")
 
+async def scheduled_cleanup_task():
+    """
+    Runs automatically to delete expired events.
+    """
+    print("DAILY SCHEDULE: Starting expired event cleanup...")
+    from app.services.cleanup import delete_expired_events
+    
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session:
+        try:
+            deleted_count = await delete_expired_events(session)
+            print(f"Cleanup finished. Deleted {deleted_count} expired events.")
+        except Exception as e:
+            print(f"Cleanup failed: {e}")
+
 # --- LIFESPAN MANAGER ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,8 +95,13 @@ async def lifespan(app: FastAPI):
     # 2. Startup: Initialize Scheduler
     scheduler = AsyncIOScheduler()
     scheduler.add_job(scheduled_scraper_task, 'cron', hour=8, minute=0)
+    scheduler.add_job(scheduled_cleanup_task, 'cron', hour=2, minute=0) # Keep as backup
     scheduler.start()
     print("Scheduler started! Will scrape every day at 8:00 AM.")
+    
+    # 3. Startup: Run Cleanup Immediately (Since laptop might be off at 2 AM)
+    print("STARTUP: Running initial cleanup...")
+    asyncio.create_task(scheduled_cleanup_task())
     
     yield
     

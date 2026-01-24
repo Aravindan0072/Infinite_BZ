@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, TrendingUp, Settings, LogOut, Plus, Infinity } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, TrendingUp, Settings, LogOut, ScanLine, Plus, Infinity as InfinityIcon } from 'lucide-react';
 
 export default function Sidebar({ activePage, onNavigate, onLogout, onCreateClick }) {
     return (
@@ -6,7 +6,7 @@ export default function Sidebar({ activePage, onNavigate, onLogout, onCreateClic
             <div className="p-6">
                 <div className="flex items-center gap-3 font-bold text-xl text-white cursor-pointer" onClick={() => onNavigate('dashboard')}>
                     <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/20">
-                        <Infinity size={20} className="text-white" />
+                        <InfinityIcon size={20} className="text-white" />
                     </div>
                     <div>
                         InfiniteBZ
@@ -39,6 +39,12 @@ export default function Sidebar({ activePage, onNavigate, onLogout, onCreateClic
                     active={activePage === 'settings'}
                     onClick={() => onNavigate('settings')}
                 />
+                <NavItem
+                    icon={<ScanLine size={20} />}
+                    label="Check-in Tool"
+                    active={activePage === 'check-in'}
+                    onClick={() => onNavigate('check-in')}
+                />
             </nav>
 
             <div className="p-4">
@@ -63,7 +69,7 @@ function NavItem({ icon, label, active, onClick }) {
         <button
             onClick={onClick}
             className={`flex items-center gap-3 px-4 py-3 w-full rounded-xl transition-all mb-1 ${active
-                ? 'bg-white/10 text-white font-bold border border-white/5'
+                ? 'bg-primary-500/10 text-white font-bold border border-primary-500/20'
                 : 'text-white/70 hover:bg-white/5 hover:text-white'
                 }`}
         >

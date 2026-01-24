@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, Type, AlignLeft, Clock, Globe, X, Check, ChevronRight, ChevronLeft, Image as ImageIcon, Plus, Trash2, User, List, Link as LinkIcon, Twitter, Linkedin, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, Type, AlignLeft, Clock, Globe, X, Check, ChevronRight, ChevronLeft, Image as ImageIcon, Plus, Trash2, User, List, Link as LinkIcon, Twitter, Linkedin, Sparkles, Ticket, Upload } from 'lucide-react';
+import TicketManager from './TicketManager';
 
 export default function CreateEventModal({ isOpen, onClose, onSave, initialData = null }) {
     const [step, setStep] = useState(1);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [formData, setFormData] = useState({
         title: "",
         category: "Business",
@@ -16,7 +18,7 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
         location: "",
         imageUrl: "",
         agendaItems: [],
-        speakers: []
+        tickets: [] // List of { name, type, price, quantity, description }
     });
 
     useEffect(() => {
@@ -35,7 +37,8 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                     location: initialData.venue_address || "",
                     imageUrl: initialData.image_url || "", // Map backend image_url to form imageUrl
                     agendaItems: initialData.raw_data?.agenda || [],
-                    speakers: initialData.raw_data?.speakers || []
+                    // Load tickets from raw_data or reconstruct from legacy fields
+                    tickets: initialData.raw_data?.tickets_meta || [],
                 });
             } else {
                 // Reset for Create Mode
@@ -51,7 +54,7 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                     location: "",
                     imageUrl: "",
                     agendaItems: [],
-                    speakers: []
+                    tickets: []
                 });
             }
         }
@@ -62,6 +65,34 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('http://localhost:8000/api/v1/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setFormData(prev => ({ ...prev, imageUrl: data.url }));
+            } else {
+                alert("Upload failed");
+            }
+        } catch (err) {
+            console.error("Upload error", err);
+            alert("Error uploading image");
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleNext = () => {
@@ -86,12 +117,13 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
             ...formData,
             start_time: `${formData.startDate}T${formData.startTime}:00`,
             end_time: `${formData.endDate || formData.startDate}T${formData.endTime}:00`,
-            is_free: true,
             venue_name: formData.mode === 'online' ? 'Online Event' : formData.location, // Simplified
             venue_address: formData.mode === 'online' ? 'Online' : formData.location,
             online_event: formData.mode === 'online',
             agenda: formData.agendaItems,
-            speakers: formData.speakers,
+            tickets: formData.tickets, // Pass full ticket list to backend
+            // Legacy fields calculated by backend now, but sending for safety if needed
+            capacity: formData.tickets.reduce((acc, t) => acc + (parseInt(t.quantity) || 0), 0),
             id: initialData?.id // Include ID if editing
         };
         await onSave(payload);
@@ -124,33 +156,6 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
         }));
     };
 
-    // --- Helpers for Speakers ---
-    const addSpeaker = () => {
-        setFormData(prev => ({
-            ...prev,
-            speakers: [
-                ...prev.speakers,
-                { id: Date.now(), name: "", role: "", company: "", imageUrl: "", linkedIn: "", twitter: "" }
-            ]
-        }));
-    };
-
-    const removeSpeaker = (id) => {
-        setFormData(prev => ({
-            ...prev,
-            speakers: prev.speakers.filter(item => item.id !== id)
-        }));
-    };
-
-    const updateSpeaker = (id, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            speakers: prev.speakers.map(item =>
-                item.id === id ? { ...item, [field]: value } : item
-            )
-        }));
-    };
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300 p-4">
             <div className="bg-slate-900 w-full max-w-4xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-slate-700/50 relative animate-in zoom-in-95 duration-300 ring-1 ring-white/10">
@@ -172,7 +177,7 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                     <div className="flex items-center gap-6">
                         {/* STEP INDICATOR */}
                         <div className="flex items-center gap-2">
-                            {[1, 2, 3, 4].map((s) => (
+                            {[1, 2, 3, 4, 5].map((s) => (
                                 <div key={s} className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${step >= s ? 'bg-primary-500 scale-110 shadow-[0_0_8px_rgba(14,165,233,0.5)]' : 'bg-slate-700'}`} />
                             ))}
                         </div>
@@ -234,16 +239,26 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                                         </div>
                                     </div>
                                     <div className="group">
-                                        <label className="text-sm font-medium text-slate-300 mb-2 block group-focus-within:text-primary-400 transition-colors">Cover Image URL</label>
-                                        <div className="relative">
-                                            <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-500 transition-colors" size={20} />
-                                            <input
-                                                name="imageUrl"
-                                                value={formData.imageUrl}
-                                                onChange={handleChange}
-                                                placeholder="https://example.com/image.jpg"
-                                                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary-500 transition-all"
-                                            />
+                                        <label className="text-sm font-medium text-slate-300 mb-2 block group-focus-within:text-primary-400 transition-colors">Cover Image</label>
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-500 transition-colors" size={20} />
+                                                <input
+                                                    name="imageUrl"
+                                                    value={formData.imageUrl}
+                                                    onChange={handleChange}
+                                                    placeholder="Enter URL or upload..."
+                                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary-500 transition-all"
+                                                />
+                                            </div>
+                                            <label className={`flex items-center justify-center px-4 rounded-xl border border-dashed border-slate-600 cursor-pointer hover:bg-slate-800 transition-colors ${isUploading ? 'opacity-50 cursor-wait' : ''}`}>
+                                                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={isUploading} />
+                                                {isUploading ? (
+                                                    <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <Upload size={20} className="text-slate-400" />
+                                                )}
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -364,16 +379,31 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                         </div>
                     )}
 
-                    {/* STEP 3: DETAILS */}
+                    {/* STEP 3: TICKETS (UPDATED) */}
                     {step === 3 && (
-                        <div className="space-y-8 max-w-4xl mx-auto">
+                        <div className="space-y-8 max-w-3xl mx-auto">
                             <div className="text-center mb-8">
-                                <h3 className="text-xl font-bold text-white mb-2">Content & Speakers</h3>
-                                <p className="text-slate-400">Add the finer details to your event.</p>
+                                <h3 className="text-xl font-bold text-white mb-2">Ticket Details</h3>
+                                <p className="text-slate-400">Manage your ticket configuration here.</p>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                {/* AGENDA COLUMN */}
+                            <TicketManager
+                                tickets={formData.tickets}
+                                onChange={(newTickets) => setFormData(p => ({ ...p, tickets: newTickets }))}
+                            />
+                        </div>
+                    )}
+
+                    {/* STEP 4: AGENDA (Previously Step 3) */}
+                    {step === 4 && (
+                        <div className="space-y-8 max-w-4xl mx-auto">
+                            <div className="text-center mb-8">
+                                <h3 className="text-xl font-bold text-white mb-2">Event Content</h3>
+                                <p className="text-slate-400">Enrich your event page with an agenda.</p>
+                            </div>
+
+                            <div className="max-w-2xl mx-auto">
+                                {/* AGENDA SECTION */}
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                                         <h3 className="text-white font-bold flex items-center gap-2">
@@ -421,62 +451,12 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* SPEAKERS COLUMN */}
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                                        <h3 className="text-white font-bold flex items-center gap-2">
-                                            <User className="text-primary-500" size={20} /> Speakers
-                                        </h3>
-                                        <button onClick={addSpeaker} className="w-8 h-8 rounded-lg bg-primary-500 hover:bg-primary-400 text-slate-900 flex items-center justify-center transition-colors shadow-lg shadow-primary-500/20">
-                                            <Plus size={18} />
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-3 h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                                        {formData.speakers.length === 0 && (
-                                            <div className="h-full flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-xl bg-slate-900/30">
-                                                <User size={40} className="mb-2 opacity-20" />
-                                                <p className="text-sm">No speakers added yet</p>
-                                            </div>
-                                        )}
-                                        {formData.speakers.map((item) => (
-                                            <div key={item.id} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 relative group hover:border-slate-600 transition-colors flex gap-4">
-                                                <button onClick={() => removeSpeaker(item.id)} className="absolute top-3 right-3 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
-                                                    <Trash2 size={14} />
-                                                </button>
-
-                                                <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center overflow-hidden border border-slate-700 flex-shrink-0">
-                                                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <User className="text-slate-600" size={20} />}
-                                                </div>
-
-                                                <div className="flex-1 space-y-2 min-w-0">
-                                                    <input
-                                                        placeholder="Name"
-                                                        value={item.name}
-                                                        onChange={(e) => updateSpeaker(item.id, 'name', e.target.value)}
-                                                        className="w-full bg-transparent border-0 border-b border-slate-700 px-0 py-0.5 text-sm text-white focus:border-primary-500 focus:ring-0 placeholder:text-slate-600 font-bold"
-                                                    />
-                                                    <input
-                                                        placeholder="Role, Company"
-                                                        value={item.role}
-                                                        onChange={(e) => updateSpeaker(item.id, 'role', e.target.value)}
-                                                        className="w-full bg-transparent border-0 px-0 py-0 text-xs text-slate-400 focus:text-white focus:ring-0 placeholder:text-slate-600"
-                                                    />
-                                                    <div className="flex gap-2 pt-1">
-                                                        <input placeholder="Image URL" value={item.imageUrl} onChange={(e) => updateSpeaker(item.id, 'imageUrl', e.target.value)} className="flex-1 bg-slate-900 border-slate-700 rounded px-2 py-1 text-[10px] text-slate-300" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* STEP 4: REVIEW */}
-                    {step === 4 && (
+                    {/* STEP 5: REVIEW (Previously Step 4) */}
+                    {step === 5 && (
                         <div className="space-y-8 max-w-lg mx-auto text-center pt-8">
                             <div className="w-24 h-24 bg-gradient-to-tr from-green-500 to-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-green-500/30 animate-in zoom-in spin-in-12 duration-500">
                                 <Check className="text-white" size={48} />
@@ -509,6 +489,14 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                                         <MapPin size={16} className="text-slate-500" />
                                         <span className="truncate">{formData.mode === 'online' ? 'Online Event' : formData.location}</span>
                                     </div>
+                                    <div className="flex gap-3 text-slate-300 pt-2 border-t border-slate-700/50 mt-2">
+                                        <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                                            <Ticket size={16} />
+                                            {formData.tickets.length > 0
+                                                ? `${formData.tickets.length} Ticket Types Configured`
+                                                : "No Tickets Configured"}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -526,10 +514,10 @@ export default function CreateEventModal({ isOpen, onClose, onSave, initialData 
                     </button>
 
                     <button
-                        onClick={step === 4 ? handleSubmit : handleNext}
-                        className={`px-8 py-3 rounded-xl font-bold text-white shadow-xl transition-all flex items-center gap-2 transform active:scale-95 duration-200 ${step === 4 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 shadow-green-500/25' : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 shadow-primary-500/25'}`}
+                        onClick={step === 5 ? handleSubmit : handleNext}
+                        className={`px-8 py-3 rounded-xl font-bold text-white shadow-xl transition-all flex items-center gap-2 transform active:scale-95 duration-200 ${step === 5 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 shadow-green-500/25' : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 shadow-primary-500/25'}`}
                     >
-                        {step === 4 ? (
+                        {step === 5 ? (
                             <>Publish Event <Sparkles size={16} /></>
                         ) : (
                             <>Next Step <ChevronRight size={16} /></>

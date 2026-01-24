@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Loader2, Calendar, MapPin, Search, ArrowRight, CheckCircle2, Linkedin, ShieldCheck, Check, X, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Calendar, MapPin, Search, ArrowRight, CheckCircle2, Linkedin, ShieldCheck, Check, X, ArrowLeft, User } from 'lucide-react';
 import { TermsModal, PrivacyModal } from './LegalDocs';
 import { GoogleLogin } from '@react-oauth/google';
 
@@ -109,15 +109,25 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email,
-                    password,
-                    full_name: fullName,
+                    email: email.trim(),
+                    password: password,
+                    full_name: fullName.trim(),
                     is_active: false
                 }),
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Signup failed');
+            if (!res.ok) {
+                let errorMsg = 'Signup failed';
+                if (data.detail) {
+                    if (Array.isArray(data.detail)) {
+                        errorMsg = data.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+                    } else {
+                        errorMsg = data.detail;
+                    }
+                }
+                throw new Error(errorMsg);
+            }
 
             // Instead of auto-login, go to verification mode
             setMode('verify');
@@ -138,11 +148,24 @@ export default function AuthPage({ onBack, onComplete, initialMode = 'login' }) 
             const res = await fetch('/api/v1/auth/verify-signup-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp }),
+                body: JSON.stringify({
+                    email: email.trim(),
+                    otp: otp.trim()
+                }),
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Verification failed');
+            if (!res.ok) {
+                let errorMsg = 'Verification failed';
+                if (data.detail) {
+                    if (Array.isArray(data.detail)) {
+                        errorMsg = data.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+                    } else {
+                        errorMsg = data.detail;
+                    }
+                }
+                throw new Error(errorMsg);
+            }
 
             alert("Email verified successfully! You can now login.");
             setMode('login');

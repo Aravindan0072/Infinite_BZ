@@ -4,6 +4,34 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
 
+# --- NEW: Ticket Class Model ---
+class TicketClass(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    event_id: int = Field(foreign_key="event.id", index=True)
+    type: str = "paid"  # free, paid, donation
+    name: str
+    price: float = 0.0
+    quantity: int  # Total allocated quantity
+    quantity_sold: int = Field(default=0)  # Track sales
+    min_quantity: int = 1
+    max_quantity: int = 10
+    sales_start: Optional[datetime] = None
+    sales_end: Optional[datetime] = None
+    description: Optional[str] = None
+    is_active: bool = True
+    currency: str = "INR"  # Default currency
+
+class TicketClassCreate(SQLModel):
+    name: str
+    type: str = "paid"
+    price: float = 0.0
+    quantity: int
+    description: Optional[str] = None
+    sales_start: Optional[datetime] = None
+    sales_end: Optional[datetime] = None
+    min_quantity: int = 1
+    max_quantity: int = 10
+
 class Event(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     
@@ -65,6 +93,10 @@ class EventCreate(SQLModel):
     # Content Fields
     agenda: Optional[List[Dict[str, Any]]] = None
     speakers: Optional[List[Dict[str, Any]]] = None
+    gallery_images: Optional[List[str]] = None
+
+    # --- NEW: Ticket List for Creation ---
+    tickets: Optional[List[TicketClassCreate]] = None
 
 class UserRegistration(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -78,6 +110,12 @@ class UserRegistration(SQLModel, table=True):
     # Auto-Registration Fields
     confirmation_id: Optional[str] = None
     status: str = Field(default="PENDING") # PENDING, SUCCESS, FAILED
+    
+    # --- NEW: Ticket Link ---
+    ticket_class_id: Optional[int] = Field(default=None, foreign_key="ticketclass.id")
+
+    # Store checkout details (attendee info, ticket breakdown)
+    raw_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSONB))
 
 # --- User Authentication Models ---
 

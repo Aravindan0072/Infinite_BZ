@@ -32,13 +32,15 @@ export default function EventFeed({ events, loading, error, onBack }) {
     window.open(event.url, '_blank');
   };
 
-  const handleInternalRegister = async (event) => {
+  const handleInternalRegister = async (event, payload = null) => {
     try {
       const res = await fetch(`/api/v1/events/${event.id}/register`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // simple check
-        }
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload || {})
       });
 
       if (res.ok) {
@@ -49,7 +51,7 @@ export default function EventFeed({ events, loading, error, onBack }) {
         if (data.status === "ALREADY_REGISTERED") {
           setIsRegistered(true);
         } else {
-          alert("Registration failed: " + (data.detail || "Unknown error"));
+          alert("Registration failed: " + (typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || "Unknown error")));
         }
       }
     } catch (err) {

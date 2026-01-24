@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 # Setup DB connection locally since we are not in the app
-DATABASE_URL = "postgresql+asyncpg://postgres:Sankar%40722001@localhost:5432/infinitetechai"
+from app.core.database import DATABASE_URL
 engine = create_async_engine(DATABASE_URL)
 
 async def force_scrape():
@@ -47,6 +47,8 @@ async def force_scrape():
                     existing_event.image_url = data.get("image_url") # Ensure image is current
                     existing_event.is_free = data.get("is_free")
                     existing_event.online_event = data.get("online_event")
+                    existing_event.start_time = data.get("start_time")
+                    existing_event.end_time = data.get("end_time")
                     session.add(existing_event) # Mark as dirty
                     count += 1
                 else:

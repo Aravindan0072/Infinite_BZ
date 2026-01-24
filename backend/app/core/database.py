@@ -18,7 +18,6 @@ if not DATABASE_URL:
 # Ensure asyncpg is used
 if DATABASE_URL and not DATABASE_URL.startswith("postgresql+asyncpg://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 async def init_db():

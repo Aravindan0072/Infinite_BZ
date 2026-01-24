@@ -6,6 +6,9 @@ import {
     Bold, Italic, Underline, Link as LinkIcon, List, Clock, Plus, Trash2, User, Twitter, Linkedin
 } from 'lucide-react';
 import Sidebar from './Sidebar';
+import TicketManager from './TicketManager';
+import MarkdownEditor from './MarkdownEditor';
+import ImageGalleryUploader from './ImageGalleryUploader';
 
 export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) {
     const [formData, setFormData] = useState({
@@ -19,6 +22,7 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
         mode: "offline",
         location: "",
         imageUrl: "",
+        galleryImages: [],
         isFree: true,
         ticketPrice: 0,
         audience: "General Public",
@@ -29,7 +33,8 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
         meetingLinkPrivate: true,
         timezone: "Asia/Kolkata",
         agendaItems: [],
-        speakers: []
+        speakers: [],
+        tickets: []
     });
 
     const [loading, setLoading] = useState(false);
@@ -63,20 +68,25 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
             ...formData,
             start_time: `${formData.startDate}T${formData.startTime}:00`,
             end_time: `${formData.endDate || formData.startDate}T${formData.endTime}:00`,
-            is_free: formData.isFree,
             venue_name: formData.mode === 'online' ? 'Online Event' : formData.location,
             venue_address: formData.mode === 'online' ? 'Online' : formData.location,
             online_event: formData.mode === 'online',
             image_url: formData.imageUrl,
-            price: formData.isFree ? "0" : formData.ticketPrice.toString(),
             category: formData.category,
-            capacity: formData.capacity ? parseInt(formData.capacity) : null,
-            registration_deadline: formData.registrationDeadline ? `${formData.registrationDeadline}T23:59:00` : null,
-            meeting_link: formData.meetingLink,
-            meeting_link_private: formData.meetingLinkPrivate,
             timezone: formData.timezone,
             agenda: formData.agendaItems,
-            speakers: formData.speakers
+            speakers: formData.speakers,
+            tickets: formData.tickets,
+            gallery_images: formData.galleryImages,
+            // Calculate capacity from tickets if provided, else use global capacity
+            capacity: formData.tickets.length > 0
+                ? formData.tickets.reduce((acc, t) => acc + (parseInt(t.quantity) || 0), 0)
+                : (formData.capacity ? parseInt(formData.capacity) : null),
+            // Determine price/free status from tickets
+            is_free: formData.tickets.length > 0 ? formData.tickets.every(t => t.type === 'free' || t.price === 0) : formData.isFree,
+            price: formData.tickets.length > 0
+                ? (Math.min(...formData.tickets.map(t => parseFloat(t.price) || 0))).toString()
+                : (formData.isFree ? "0" : formData.ticketPrice.toString())
         };
         try {
             const result = await onSave(payload);
@@ -233,21 +243,10 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
                                     <div>
                                         <label className="block text-sm font-bold text-slate-400 mb-2 uppercase tracking-wider text-[11px]">Description</label>
                                         <div className="rounded-xl border border-slate-700 bg-slate-900/50 overflow-hidden focus-within:ring-2 focus-within:ring-cyan-500/20 focus-within:border-cyan-500 transition-all group">
-                                            <div className="flex gap-1 p-2 border-b border-slate-700 bg-slate-800/50">
-                                                <ToolbarButton icon={<Bold size={14} />} />
-                                                <ToolbarButton icon={<Italic size={14} />} />
-                                                <ToolbarButton icon={<Underline size={14} />} />
-                                                <div className="w-px h-4 bg-slate-700 mx-2 self-center"></div>
-                                                <ToolbarButton icon={<LinkIcon size={14} />} />
-                                                <ToolbarButton icon={<List size={14} />} />
-                                            </div>
-                                            <textarea
-                                                name="description"
+                                            <MarkdownEditor
                                                 value={formData.description}
-                                                onChange={handleChange}
-                                                rows={6}
-                                                placeholder="Describe what attendees will learn, who should attend..."
-                                                className="w-full px-5 py-6 bg-transparent border-none focus:outline-none resize-none text-slate-300 leading-relaxed text-lg placeholder:text-slate-600"
+                                                onChange={(value) => setFormData({ ...formData, description: value })}
+                                                placeholder="Describe your event... (Support for Markdown: **bold**, *italic*, # headings, - lists)"
                                             />
                                             <div className="text-right px-4 py-2 text-[10px] font-bold uppercase text-slate-500 border-t border-slate-700/50 bg-slate-900/30">
                                                 {formData.description.length}/2000 characters
@@ -304,14 +303,15 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
                                                 }
                                             }}
                                         />
-                                        <input
-                                            name="imageUrl"
-                                            value={formData.imageUrl}
-                                            onChange={handleChange}
-                                            placeholder="Or paste direct image URL here..."
-                                            className="mt-3 w-full px-4 py-2 text-sm bg-transparent border-b border-slate-700 focus:border-cyan-500 focus:outline-none transition-colors text-slate-400 text-center"
-                                        />
                                     </div>
+
+                                    <input
+                                        name="imageUrl"
+                                        value={formData.imageUrl}
+                                        onChange={handleChange}
+                                        placeholder="Or paste direct image URL here..."
+                                        className="mt-3 w-full px-4 py-2 text-sm bg-transparent border-b border-slate-700 focus:border-cyan-500 focus:outline-none transition-colors text-slate-400 text-center"
+                                    />
                                 </div>
                             </div>
 
@@ -680,73 +680,10 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
                             {/* TICKETING */}
                             <div className="bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow hover:shadow-cyan-500/5">
                                 <h3 className="font-bold text-white mb-6 text-lg">Ticketing</h3>
-                                <div className="space-y-4">
-                                    <label className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.isFree ? 'border-green-500 bg-green-900/10' : 'border-slate-700 hover:border-slate-600'}`}>
-                                        <input type="radio" name="isFree" checked={formData.isFree} onChange={() => setFormData(p => ({ ...p, isFree: true }))} className="hidden" />
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-4 ${formData.isFree ? 'border-green-500' : 'border-slate-500'}`}>
-                                            {formData.isFree && <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />}
-                                        </div>
-                                        <div>
-                                            <span className="block font-bold text-white">Free Event</span>
-                                            <span className="block text-xs text-slate-400 mt-0.5">Best for community meetups</span>
-                                        </div>
-                                    </label>
-
-                                    <label className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${!formData.isFree ? 'border-cyan-500 bg-cyan-900/10' : 'border-slate-700 hover:border-slate-600'}`}>
-                                        <input type="radio" name="isFree" checked={!formData.isFree} onChange={() => setFormData(p => ({ ...p, isFree: false }))} className="hidden" />
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-4 ${!formData.isFree ? 'border-cyan-500' : 'border-slate-500'}`}>
-                                            {!formData.isFree && <div className="w-2.5 h-2.5 bg-cyan-500 rounded-full" />}
-                                        </div>
-                                        <div>
-                                            <span className="block font-bold text-white">Paid Ticket</span>
-                                            <span className="block text-xs text-slate-400 mt-0.5">Set custom pricing</span>
-                                        </div>
-                                    </label>
-
-                                    {!formData.isFree && (
-                                        <div className="pt-2 animate-in slide-in-from-top-2">
-                                            <div className="relative">
-                                                <IndianRupee size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                <input
-                                                    type="number"
-                                                    name="ticketPrice"
-                                                    value={formData.ticketPrice}
-                                                    onChange={handleChange}
-                                                    placeholder="0.00"
-                                                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-700 bg-slate-900 font-bold text-lg focus:outline-none focus:ring-4 focus:ring-cyan-500/10 focus:border-cyan-500 text-white placeholder:text-slate-600"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* CAPACITY & DEADLINE */}
-                                    <div className="pt-4 border-t border-slate-700 space-y-3">
-                                        <div>
-                                            <label className="text-[11px] font-bold uppercase text-slate-400 mb-2 block tracking-wider">Capacity (Optional)</label>
-                                            <div className="relative">
-                                                <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                <input
-                                                    type="number"
-                                                    name="capacity"
-                                                    value={formData.capacity}
-                                                    onChange={handleChange}
-                                                    placeholder="Unlimited"
-                                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/50 text-sm focus:outline-none focus:border-cyan-500 text-white placeholder:text-slate-600"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[11px] font-bold uppercase text-slate-400 mb-2 block tracking-wider">Reg. Deadline</label>
-                                            <input
-                                                type="date"
-                                                name="registrationDeadline"
-                                                value={formData.registrationDeadline}
-                                                onChange={handleChange}
-                                                className="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900/50 text-sm focus:outline-none focus:border-cyan-500 text-white color-scheme-dark"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                                <TicketManager
+                                    tickets={formData.tickets}
+                                    onChange={(newTickets) => setFormData(p => ({ ...p, tickets: newTickets }))}
+                                />
                             </div>
 
                         </div>
@@ -793,8 +730,9 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
                     </div>
                 </div>
 
+
                 {/* ACTION BUTTONS (Floating Dock) */}
-                <div className="fixed bottom-6 lg:left-[calc(16rem+50%)] lg:-translate-x-1/2 lg:w-[calc(100%-18rem)] max-w-3xl w-[90%] left-1/2 -translate-x-1/2 z-40">
+                < div className="fixed bottom-6 lg:left-[calc(16rem+50%)] lg:-translate-x-1/2 lg:w-[calc(100%-18rem)] max-w-3xl w-[90%] left-1/2 -translate-x-1/2 z-40" >
                     <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 p-4 rounded-2xl shadow-2xl flex items-center justify-between ring-1 ring-slate-900/5">
                         {/* Auto-save Indicator */}
                         <div className="flex items-center gap-3 pl-2">
@@ -824,39 +762,41 @@ export default function CreateEventPage({ user, onNavigate, onLogout, onSave }) 
                             </button>
                         </div>
                     </div>
-                </div>
+                </div >
                 {/* SUCCESS MODAL */}
-                {showSuccessModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200 text-center border border-slate-800">
-                            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-lg shadow-green-500/30">
-                                <Check size={32} strokeWidth={3} />
-                            </div>
-                            <h2 className="text-2xl font-black text-white mb-2">Event Published! 🎉</h2>
-                            <p className="text-slate-500 mb-8 font-medium">Your event is now live and ready to be shared with the world.</p>
+                {
+                    showSuccessModal && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200 text-center border border-slate-800">
+                                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 text-white shadow-lg shadow-green-500/30">
+                                    <Check size={32} strokeWidth={3} />
+                                </div>
+                                <h2 className="text-2xl font-black text-white mb-2">Event Published! 🎉</h2>
+                                <p className="text-slate-500 mb-8 font-medium">Your event is now live and ready to be shared with the world.</p>
 
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(`https://infinitebz.com/events/${createdEventId}`);
-                                        alert("Link copied!");
-                                    }}
-                                    className="w-full py-3.5 rounded-xl border-2 border-slate-700 bg-slate-800 font-bold text-white hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Globe size={18} /> Copy Event Link
-                                </button>
-                                <button
-                                    onClick={() => onNavigate('dashboard')}
-                                    className="w-full py-3.5 rounded-xl bg-cyan-500 text-slate-900 font-bold hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/25"
-                                >
-                                    Go to Dashboard
-                                </button>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`https://infinitebz.com/events/${createdEventId}`);
+                                            alert("Link copied!");
+                                        }}
+                                        className="w-full py-3.5 rounded-xl border-2 border-slate-700 bg-slate-800 font-bold text-white hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Globe size={18} /> Copy Event Link
+                                    </button>
+                                    <button
+                                        onClick={() => onNavigate('dashboard')}
+                                        className="w-full py-3.5 rounded-xl bg-cyan-500 text-slate-900 font-bold hover:bg-cyan-600 transition-all shadow-lg shadow-cyan-500/25"
+                                    >
+                                        Go to Dashboard
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-            </main>
-        </div>
+                    )
+                }
+            </main >
+        </div >
     );
 }
 

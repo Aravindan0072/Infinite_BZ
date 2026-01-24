@@ -95,7 +95,7 @@ export default function ChatWidget() {
                     }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-full flex items-center justify-center text-white shadow-[0_8px_32px_rgba(79,70,229,0.4)] border border-white/20 active:shadow-inner overflow-hidden relative cursor-pointer"
+                    className="w-16 h-16 bg-gradient-to-br from-primary-600 to-primary-500 rounded-full flex items-center justify-center text-white shadow-[0_8px_32px_rgba(8,145,178,0.4)] border border-white/20 active:shadow-inner overflow-hidden relative cursor-pointer"
                 >
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.2),transparent)] pointer-events-none"></div>
                     <AnimatePresence mode="wait">
@@ -134,11 +134,11 @@ export default function ChatWidget() {
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className={`absolute bottom-20 right-0 w-[360px] flex flex-col overflow-hidden rounded-[2rem] border border-white/20 bg-slate-900/80 shadow-[0_32px_128px_rgba(0,0,0,0.6)] backdrop-blur-[20px] pointer-events-auto ${isMinimized ? 'h-20' : 'h-[560px]'}`}
                     >
-                        <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-900 p-4 flex items-center justify-between border-b border-white/10 relative overflow-hidden">
+                        <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-4 flex items-center justify-between border-b border-white/10 relative overflow-hidden">
                             <div className="absolute inset-0 bg-white/5 opacity-30 blur-2xl pointer-events-none"></div>
                             <div className="flex items-center gap-3 relative z-10">
                                 <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 shadow-lg">
-                                    <Sparkles className="text-indigo-400" size={18} />
+                                    <Sparkles className="text-primary-400" size={18} />
                                 </div>
                                 <h3 className="font-extrabold text-white text-md tracking-tight">Infinite AI</h3>
                             </div>
@@ -163,13 +163,13 @@ export default function ChatWidget() {
                                         <div key={index} className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`flex gap-4 max-w-[88%] ${chat.role === 'user' ? 'flex-row-reverse' : ''}`}>
                                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 border shadow-lg ${chat.role === 'user'
-                                                    ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 border-indigo-400 text-white'
+                                                    ? 'bg-gradient-to-br from-primary-500 to-primary-600 border-primary-400 text-white'
                                                     : 'bg-white/10 border-white/10 text-slate-300'
                                                     }`}>
-                                                    {chat.role === 'user' ? <User size={16} /> : <Zap size={16} className="text-indigo-400" />}
+                                                    {chat.role === 'user' ? <User size={16} /> : <Zap size={16} className="text-primary-400" />}
                                                 </div>
                                                 <div className={`p-4 rounded-[1.5rem] text-[15px] leading-relaxed shadow-xl ${chat.role === 'user'
-                                                    ? 'bg-indigo-600/30 border border-indigo-400/30 text-indigo-50 rounded-tr-none'
+                                                    ? 'bg-primary-600/30 border border-primary-400/30 text-white rounded-tr-none'
                                                     : 'bg-white/10 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md'
                                                     }`}>
                                                     <SafeMarkdown text={chat.text} />
@@ -182,12 +182,12 @@ export default function ChatWidget() {
                                         <div className="flex justify-start">
                                             <div className="flex gap-4">
                                                 <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
-                                                    <Activity size={16} className="text-indigo-400 animate-pulse" />
+                                                    <Activity size={16} className="text-primary-400 animate-pulse" />
                                                 </div>
                                                 <div className="bg-white/10 border border-white/10 p-5 rounded-[1.5rem] rounded-tl-none flex gap-1.5 items-center">
-                                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-indigo-500 rounded-full"></motion.div>
-                                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-indigo-500 rounded-full"></motion.div>
-                                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-indigo-500 rounded-full"></motion.div>
+                                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-primary-500 rounded-full"></motion.div>
+                                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-primary-500 rounded-full"></motion.div>
+                                                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-primary-500 rounded-full"></motion.div>
                                                 </div>
                                             </div>
                                         </div>
@@ -204,7 +204,7 @@ export default function ChatWidget() {
                                                         whileHover={{ scale: 1.05, y: -2 }}
                                                         whileTap={{ scale: 0.95 }}
                                                         onClick={() => handleSendMessage(chip.query)}
-                                                        className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300 hover:bg-indigo-500 hover:text-white hover:border-indigo-400 transition-all shadow-lg backdrop-blur-md cursor-pointer"
+                                                        className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300 hover:bg-primary-500 hover:text-white hover:border-primary-400 transition-all shadow-lg backdrop-blur-md cursor-pointer"
                                                     >
                                                         {chip.label}
                                                     </motion.button>
@@ -220,18 +220,18 @@ export default function ChatWidget() {
                                         className="relative group flex items-center gap-3"
                                     >
                                         <div className="relative flex-1 group/input">
-                                            <div className="absolute inset-0 bg-indigo-500/10 rounded-2xl opacity-0 group-focus-within/input:opacity-100 transition-opacity blur-xl"></div>
+                                            <div className="absolute inset-0 bg-primary-500/10 rounded-2xl opacity-0 group-focus-within/input:opacity-100 transition-opacity blur-xl"></div>
                                             <input
                                                 type="text"
                                                 value={message}
                                                 onChange={(e) => setMessage(e.target.value)}
                                                 placeholder="Initialize query..."
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-5 pr-14 py-4 text-sm text-white focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all placeholder:text-slate-500 relative z-10 backdrop-blur-md"
+                                                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-5 pr-14 py-4 text-sm text-white focus:outline-none focus:border-primary-500/50 focus:bg-white/10 transition-all placeholder:text-slate-500 relative z-10 backdrop-blur-md"
                                             />
                                             <button
                                                 type="submit"
                                                 disabled={!message.trim() || isTyping}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-50 text-white rounded-xl flex items-center justify-center transition-all disabled:opacity-20 disabled:grayscale shadow-lg shadow-indigo-500/20 active:scale-95 z-20"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 text-white rounded-xl flex items-center justify-center transition-all disabled:opacity-20 disabled:grayscale shadow-lg shadow-primary-500/20 active:scale-95 z-20"
                                             >
                                                 <Send size={18} strokeWidth={2.5} />
                                             </button>

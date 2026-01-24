@@ -198,12 +198,16 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
         setShowConfirmModal(true);
     };
 
-    const handleInternalRegistration = async (event) => {
+    const handleInternalRegistration = async (event, payload = null) => {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`http://localhost:8000/api/v1/events/${event.id}/register`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload || {})
             });
 
             let data;
@@ -225,13 +229,13 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                 alert('You are already registered for this event.');
             } else {
                 // Registration failed - show detailed error
-                const errorMessage = data.detail || data.message || `Server error (${res.status})`;
+                const errorMessage = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || data.message || `Server error (${res.status})`);
                 alert(`Registration failed: ${errorMessage}`);
                 console.error('Registration failed:', data);
             }
         } catch (err) {
             console.error('Registration error:', err);
-            alert('Registration failed. Please try again.');
+            alert('Registration failed. Please check your connection and try again.');
         }
     };
 
@@ -269,7 +273,11 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
             const token = localStorage.getItem('token');
             const res = await fetch(`http://localhost:8000/api/v1/events/${pendingEventId}/register`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
             });
             const data = await res.json();
 
@@ -336,6 +344,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                     else if (view === 'my-registrations') setActiveView('my-registrations');
                     else if (view === 'notifications') setActiveView('notifications');
                     else if (view === 'settings') onNavigate('settings');
+                    else onNavigate(view); // Catch-all for check-in or others
                 }}
                 onLogout={onLogout}
                 onCreateClick={() => onNavigate('create-event')}
@@ -675,7 +684,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                                                     {activity.type === 'new_follower' && activity.follower_image ? (
                                                         <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                                                             <img
-                                                                src={activity.follower_image}
+                                                                src={activity.follower_image?.startsWith('http') ? activity.follower_image : `http://localhost:8000/${activity.follower_image?.replace(/^\//, '')}`}
                                                                 alt={activity.follower_name || activity.follower_email}
                                                                 className="w-full h-full object-cover"
                                                                 onError={(e) => {
@@ -695,7 +704,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                                                     ) : activity.type === 'event_created' && activity.event_image ? (
                                                         <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
                                                             <img
-                                                                src={activity.event_image}
+                                                                src={activity.event_image?.startsWith('http') ? activity.event_image : `http://localhost:8000/${activity.event_image?.replace(/^\//, '')}`}
                                                                 alt={activity.title}
                                                                 className="w-full h-full object-cover"
                                                                 onError={(e) => {
@@ -715,7 +724,7 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                                                     ) : activity.type === 'event_registered' && activity.image_url ? (
                                                         <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
                                                             <img
-                                                                src={activity.image_url}
+                                                                src={activity.image_url?.startsWith('http') ? activity.image_url : `http://localhost:8000/${activity.image_url?.replace(/^\//, '')}`}
                                                                 alt={activity.title}
                                                                 className="w-full h-full object-cover"
                                                                 onError={(e) => {
@@ -882,15 +891,15 @@ function EventCard({ event, onRegister, isRegistered }) {
     };
 
     return (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-shadow hover:shadow-primary-500/10">
+        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-shadow hover:shadow-primary-500/10 flex flex-col h-full">
             {/* Header with Date */}
-            <div className="relative h-32 bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center">
+            <div className="relative h-32 bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center shrink-0">
                 <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold">
                     {new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </div>
                 {event.image_url && (
                     <img
-                        src={event.image_url}
+                        src={event.image_url?.startsWith('http') ? event.image_url : `http://localhost:8000/${event.image_url?.replace(/^\//, '')}`}
                         alt={event.title}
                         className="w-full h-full object-cover absolute inset-0"
                     />
@@ -898,9 +907,9 @@ function EventCard({ event, onRegister, isRegistered }) {
             </div>
 
             {/* Content */}
-            <div className="p-4">
+            <div className="p-4 flex flex-col flex-1">
                 {/* Event Title */}
-                <h3 className="text-lg font-bold text-white mb-3 line-clamp-2 overflow-hidden" style={{
+                <h3 className="text-lg font-bold text-white mb-3 line-clamp-2 overflow-hidden h-14" style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical'
@@ -919,26 +928,28 @@ function EventCard({ event, onRegister, isRegistered }) {
                 </div>
 
                 {/* Event Details */}
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2 mb-4 flex-1">
                     <div className="flex items-center gap-2 text-xs text-slate-400">
                         <span className="font-medium text-slate-300">By {event.organizer_name || "Unknown"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span>🕒 {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>📅 {new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        <span>•</span>
+                        <span>{new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     {!event.online_event && event.venue_name && (
                         <div className="flex items-start gap-2 text-xs text-slate-400">
                             <span>📍</span>
                             <div>
-                                <p className="font-medium text-slate-300">{event.venue_name}</p>
-                                <p className="text-slate-500">{event.venue_address || "Chennai, India"}</p>
+                                <p className="font-medium text-slate-300 line-clamp-1">{event.venue_name}</p>
+                                <p className="text-slate-500 line-clamp-1">{event.venue_address || "Chennai, India"}</p>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Source */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 mt-auto">
                     <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${event.raw_data?.source === 'InfiniteBZ' ? 'bg-primary-500 text-white' : 'bg-orange-500 text-white'}`}>
                             {event.raw_data?.source === 'InfiniteBZ' ? 'IB' : 'EB'}
@@ -953,25 +964,109 @@ function EventCard({ event, onRegister, isRegistered }) {
                 <button
                     onClick={handleClick}
                     disabled={registering || isRegistered}
-                    className={`w-full py-3 rounded-lg uppercase tracking-wider font-bold transition-all inline-flex items-center justify-center gap-2 ${isRegistered
-                            ? 'bg-green-500 text-white cursor-default'
-                            : registering
-                                ? 'bg-slate-700 text-slate-400 cursor-wait'
-                                : 'bg-primary-500 hover:bg-primary-400 text-white shadow-lg shadow-primary-500/20'
+                    className={`w-full py-3 rounded-lg uppercase tracking-wider font-bold transition-all inline-flex items-center justify-center gap-2 mt-auto ${isRegistered
+                        ? 'bg-green-500 text-white cursor-default'
+                        : registering
+                            ? 'bg-slate-700 text-slate-400 cursor-wait'
+                            : 'bg-primary-500 hover:bg-primary-400 text-white shadow-lg shadow-primary-500/20'
                         }`}
                 >
+
                     {event.raw_data?.source === 'InfiniteBZ'
                         ? (
                             isRegistered ? (
-                                <> <CheckCircle2 size={16} /> <span>Registered</span> </>
+                                <><CheckCircle2 size={16} /><span>Registered</span></>
                             ) : (
-                                <> <Eye size={16} /> <span>Register</span> </>
+                                <><Eye size={16} /><span>Register</span></>
                             )
                         )
                         : (registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register')
                     }
-                </button>
-            </div>
+
+                </button >
+            </div >
+        </div >
+    );
+}
+
+function NotificationDropdown() {
+    const [isOpen, setIsOpen] = useState(false);
+    // MOCK DATA for now
+    const [notifications, setNotifications] = useState([
+        { id: 1, title: 'Registration Successful', message: 'You are booked for "Startup Summit"!', type: 'success', time: '2m ago', isRead: false },
+        { id: 2, title: 'New Event Alert', message: '3 new tech events in Chennai.', type: 'info', time: '1h ago', isRead: false },
+        { id: 3, title: 'System Update', message: 'Dashboard colors updated successfully.', type: 'info', time: '1d ago', isRead: true }
+    ]);
+
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
+    const markAsRead = (id) => {
+        setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+    };
+
+    const markAllRead = () => {
+        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    };
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`relative p-2 rounded-full transition-colors ${isOpen ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-sky-500 hover:bg-slate-800'}`}
+            >
+                <Bell size={20} />
+                {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-slate-900"></span>
+                )}
+            </button>
+
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 z-20" onClick={() => setIsOpen(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-80 bg-slate-800 border border-slate-700 shadow-xl rounded-xl overflow-hidden z-30 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-900/50">
+                            <h3 className="text-sm font-bold text-white">Notifications</h3>
+                            {unreadCount > 0 && (
+                                <button onClick={markAllRead} className="text-[10px] font-bold text-sky-500 hover:text-sky-400 uppercase tracking-wide">
+                                    Mark all read
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="max-h-[300px] overflow-y-auto">
+                            {notifications.length === 0 ? (
+                                <div className="p-8 text-center text-slate-500 text-sm">
+                                    No notifications yet.
+                                </div>
+                            ) : (
+                                notifications.map(n => (
+                                    <div
+                                        key={n.id}
+                                        onClick={() => markAsRead(n.id)}
+                                        className={`px-4 py-3 border-b border-slate-700/50 hover:bg-slate-700/50 transition-colors cursor-pointer flex gap-3 ${n.isRead ? 'opacity-60' : 'bg-slate-700/20'}`}
+                                    >
+                                        <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${n.type === 'success' ? 'bg-green-500' : 'bg-sky-500'}`} />
+                                        <div>
+                                            <p className={`text-sm ${n.isRead ? 'font-medium text-slate-400' : 'font-bold text-white'}`}>
+                                                {n.title}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                                                {n.message}
+                                            </p>
+                                            <p className="text-[10px] text-slate-600 mt-1.5 font-medium">{n.time}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="bg-slate-900/50 px-4 py-2 text-center border-t border-slate-700">
+                            <button className="text-xs font-bold text-slate-400 hover:text-white transition-colors">
+                                View All Activity
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }

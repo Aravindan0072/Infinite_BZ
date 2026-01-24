@@ -8,6 +8,7 @@ import SettingsPage from './components/SettingsPage';
 import MyRegistrationsPage from './components/MyRegistrationsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import ChatWidget from './components/ChatWidget';
+import OrganizerCheckIn from './components/OrganizerCheckIn';
 
 export default function App() {
   const [events, setEvents] = useState([]);
@@ -60,11 +61,6 @@ export default function App() {
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
-        // Only redirect to dashboard if we are on landing page or auth
-        // Assuming we want auto-redirect on session check too if just visited
-        // For now, let's keep landing unless explicitly logged in, OR 
-        // if the user refreshes on Dashboard? 
-        // Let's rely on explicit navigation for now, but handle login redirection below.
       } else {
         localStorage.removeItem('token');
       }
@@ -154,13 +150,6 @@ export default function App() {
           }}
           onLogout={handleLogout}
           onSave={async (eventData) => {
-            // We can handle saving here or pass a callback that uses the API
-            // For now, let's reuse the logic or move it here.
-            // Actually CreateEventPage has onSave prop.
-            // Let's implement the API call logic inside CreateEventPage or pass a wrapper here.
-            // For consistency with Dashboard, let's just pass a simple fetch wrapper or let CreateEventPage handle it.
-            // CreateEventPage expects onSave(payload).
-
             try {
               const token = localStorage.getItem('token');
               const res = await fetch('/api/v1/events', {
@@ -176,7 +165,7 @@ export default function App() {
                 return newEvent;
               } else {
                 const data = await res.json();
-                throw new Error(data.message || "Unknown error");
+                throw new Error(data.detail || data.message || "Unknown error");
               }
             } catch (err) {
               console.error("Create event error", err);
@@ -196,8 +185,24 @@ export default function App() {
         />
       )}
 
+      {currentView === 'check-in' && (
+        <OrganizerCheckIn
+          user={user}
+          onLogout={handleLogout}
+          onNavigate={(view) => {
+            window.scrollTo(0, 0);
+            setCurrentView(view);
+          }}
+        />
+      )}
       {currentView === 'my-registrations' && (
-        <MyRegistrationsPage />
+        <MyRegistrationsPage
+          user={user}
+          onNavigate={() => {
+            window.scrollTo(0, 0);
+            setCurrentView('feed');
+          }}
+        />
       )}
       {currentView !== 'auth' && currentView !== 'landing' && (
         <ErrorBoundary>
