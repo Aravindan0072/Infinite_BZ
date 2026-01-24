@@ -46,25 +46,26 @@ To transform from a simple aggregator to a **Platform**, we need to build for tw
 ## 3. Immediate Action Plan (Sprint 1-2)
 What we should build *next* to make the biggest impact:
 
-### ✅ Phase 1: The "Real" Transaction (Priority: HIGH)
-Currently, "Auto-Register" is too magical. We need a real checkout.
-*   **Action**: Integrate legitimate Payment Gateway (e.g., Razorpay/Stripe Test Mode).
-*   **Action**: Generate a **PDF Ticket** with a unique QR Code upon registration.
-*   **Action**: Send a confirmation **Email** with the ticket usage instructions.
+### ✅ Phase 1: The "Real" Transaction (COMPLETED)
+We have successfully moved from "Auto-Register" to a meaningful checkout flow.
+*   **Action**: Implemented `CheckoutModal` with Ticket Selection -> Details -> Payment Review.
+*   **Action**: Backend generating **PDF Ticket** with unique QR Code (`ticket_service.py`).
+*   **Action**: Validating capacity and sending confirmation **Emails** via `fastapi-mail`.
 
-### 🔄 Phase 2: The Loop (Priority: MEDIUM)
-*   **Action**: Implement **Attendee Check-in**. Build a simple page where organizers can scan/type a Ticket ID to mark them as "Present".
-*   **Action**: Add **Reviews**. Allow users to rate previous events.
+### 🔄 Phase 2: The Loop (Priority: HIGH)
+*   **Action**: **Organizer Check-in App**. A page where organizers can scan QR codes to verify attendees.
+*   **Action**: **My Registrations Page Update**. Show more detailed ticket info (VIP vs General) - *Completed*.
+*   **Action**: **Payment Integration**. Replace the "Mock Payment" with real Stripe/Razorpay integration.
 
 ### 📊 Phase 3: Organizer Power (Priority: MEDIUM)
-*   **Action**: Create the **"My Hosted Events" Analytics view**. Show them how many people viewed vs registered.
+*   **Action**: **Dashboard Analytics**. Show visual graphs of "Ticket Sales over time".
+*   **Action**: **Manage Attendees**. Allow organizers to cancel/refund tickets from their dashboard.
 
-## 4. Technical Requirements
-To achieve this, we will need:
-*   **Email Service**: AWS SES / SendGrid (for transactional emails).
-*   **Storage**: AWS S3 / Cloudinary (for user-uploaded banners/avatars).
-*   **Payments**: Stripe Connect or Razorpay Marketplace.
-*   **PDF Gen**: ReportLab (Python) or React-PDF (Frontend).
+## 4. Technical Requirements (Status)
+*   **Email Service**: AWS SES / Gmail SMTP (Configured & Working).
+*   **Storage**: Local `uploads/` for now (Need to move to AWS S3/Cloudinary for PROD).
+*   **Payments**: Currently Mocked (Need Stripe/Razorpay).
+*   **PDF Gen**: `reportlab` (Python) - Working perfectly.
 
 ---
-**Recommendation**: Start with **Phase 1 (Tickets & Email provided)**. This adds tangible value instantly—users get a "real" ticket they can show at the door.
+**Next Milestone**: Focus on **Phase 2 (Check-in Scanner & Real Payments)** to close the loop for organizers.
