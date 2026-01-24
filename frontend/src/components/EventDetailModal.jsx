@@ -3,6 +3,7 @@ import {
     Calendar, MapPin, Clock, User, Mail, Ticket, Globe, X, Share2, Heart,
     CheckCircle2, ArrowRight, Linkedin, Twitter, Shield, Star, LayoutGrid
 } from 'lucide-react';
+import CheckoutModal from './CheckoutModal';
 
 export default function EventDetailModal({ event, isOpen, onClose, onRegister, isRegistered }) {
     if (!isOpen || !event) return null;
@@ -13,6 +14,8 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
     const [isLoadingCheckFollow, setIsLoadingCheckFollow] = useState(false);
     const isInternal = event.raw_data?.source === 'InfiniteBZ';
     const isOnline = event.online_event || event.mode === 'online';
+
+    const [showCheckout, setShowCheckout] = useState(false);
 
     // Check if user is already following this organizer when event changes
     useEffect(() => {
@@ -46,19 +49,8 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
         }
     };
 
-    // Mock Data for Enhanced UI
-    const speakers = [
-        { name: "Arjun Varun", role: "CEO, Z-Corp", image: "https://i.pravatar.cc/150?u=arjun" },
-        { name: "Meera Reddy", role: "Founder, ScaleUp", image: "https://i.pravatar.cc/150?u=meera" },
-        { name: "David Chen", role: "CTO, TechFlow", image: "https://i.pravatar.cc/150?u=david" }
-    ];
-
-    const agenda = [
-        { time: "10:00 AM", title: "Registration & Networking", desc: "Pick up your badge and meet fellow attendees." },
-        { time: "11:00 AM", title: "Keynote: Future of Tech", desc: "Deep dive into 2024 trends with industry leaders." },
-        { time: "01:00 PM", title: "Lunch Break", desc: "Gourmet lunch provided at the venue." },
-        { time: "02:30 PM", title: "Workshops", desc: "Hands-on sessions on AI, Marketing, and Sales." }
-    ];
+    // Use real agenda data
+    const agenda = event.raw_data?.agenda || [];
 
     const handleFollow = async () => {
         console.log('=== FOLLOW BUTTON CLICKED ===');
@@ -197,103 +189,128 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                             </div>
 
                             {/* KEY DETAILS GRID */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-                                <div className="flex items-start gap-4">
+                            <div className="grid grid-cols-1 gap-6">
+                                {/* Date & Time */}
+                                <div className="flex items-start gap-4 p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
                                     <div className="p-3 rounded-lg bg-slate-800 text-primary-500 border border-slate-700">
                                         <Calendar size={24} />
                                     </div>
                                     <div>
                                         <p className="text-sm text-slate-400 font-medium uppercase tracking-wide mb-1">Date & Time</p>
                                         <p className="text-white font-bold text-lg">
-                                            {new Date(event.start_time).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                            {new Date(event.start_time).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                         </p>
                                         <p className="text-slate-400">
-                                            {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(event.end_time || event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
+                                </div>
 
+                                {/* Location */}
+                                <div className="flex items-start gap-4 p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                                    <div className="p-3 rounded-lg bg-slate-800 text-primary-500 border border-slate-700">
+                                        <MapPin size={24} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-slate-400 font-medium uppercase tracking-wide mb-1">Location</p>
+                                        <p className="text-white font-bold text-lg">
+                                            {event.venue_name || "Online Event"}
+                                        </p>
+                                        <p className="text-slate-400 text-sm mb-2">
+                                            {event.venue_address || "Link available after registration"}
+                                        </p>
+                                        {!isOnline && (
+                                            <div className="h-32 bg-slate-700/30 rounded-xl w-full relative overflow-hidden group cursor-pointer border border-slate-700">
+                                                <div className="absolute inset-0 bg-slate-800 flex items-center justify-center text-slate-500">
+                                                    <span className="text-xs">Map Preview</span>
+                                                </div>
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg shadow-lg text-xs font-bold flex items-center gap-1 group-hover:scale-110 transition-transform">
+                                                        <MapPin size={12} className="text-red-500" /> View on Map
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* TICKET TYPES DISPLAY */}
+                                {event.raw_data?.tickets_meta && event.raw_data.tickets_meta.length > 0 && (
+                                    <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="p-2 rounded-lg bg-slate-800 text-primary-500 border border-slate-700">
+                                                <Ticket size={20} />
+                                            </div>
+                                            <p className="text-sm text-slate-400 font-medium uppercase tracking-wide">Available Tickets</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {event.raw_data.tickets_meta.map((ticket, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/50 border border-slate-700/50">
+                                                    <div>
+                                                        <p className="font-bold text-white text-sm">{ticket.name}</p>
+                                                        <p className="text-xs text-slate-500">{ticket.description || `${ticket.quantity} available`}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className={`text-sm font-bold px-2 py-1 rounded-lg ${ticket.price == 0 ? 'bg-green-500/10 text-green-400' : 'bg-slate-800 text-white'}`}>
+                                                            {ticket.price == 0 ? 'Free' : `₹${ticket.price}`}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ACTIONS CARD */}
+                                <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 space-y-4">
                                     <button
                                         onClick={() => {
                                             if (!isRegistered) {
-                                                onRegister(event);
-                                                // onClose(); // Optional: keep open to show success state
+                                                setShowCheckout(true);
                                             }
                                         }}
                                         disabled={isRegistered}
                                         className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${isRegistered
                                             ? 'bg-green-500/20 text-green-400 border border-green-500/50 cursor-default'
-                                            : 'bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/50 hover:-translate-y-0.5'
+                                            : 'bg-primary-600 hover:bg-primary-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/50 hover:-translate-y-0.5'
                                             }`}
                                     >
                                         {isRegistered ? (
                                             <> <CheckCircle2 className="animate-in zoom-in spin-in-180" /> Registered </>
                                         ) : (
-                                            <> <Ticket className="animate-pulse" /> Auto-Register </>
+                                            <> <Ticket className="animate-pulse" /> Register Now </>
                                         )}
                                     </button>
 
-                                    {/* Follow Button - Moved here under Auto-Register */}
-                                    <div className="mt-4 pt-4 border-t border-slate-700/50">
-                                        <button
-                                            onClick={handleFollow}
-                                            disabled={isLoadingFollow}
-                                            className={`w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 ${isFollowing
-                                                ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
-                                                : 'bg-slate-700/50 text-white hover:bg-slate-600 border border-slate-600/50'
-                                                }`}
-                                        >
-                                            {isLoadingFollow ? 'Loading...' : isFollowing ? '✓ Followed' : '+ Follow Organizer'}
-                                        </button>
-                                    </div>
-
-                                    <p className="text-center text-xs text-slate-500 mt-3">
-                                        One-click registration powered by InfiniteBZ
-                                    </p>
-
-                                </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="p-3 rounded-lg bg-slate-800 text-purple-500 border border-slate-700">
-                                        <MapPin size={24} />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-slate-400 font-medium uppercase tracking-wide mb-1">Location</p>
-                                        <p className="text-white font-bold text-lg">
-                                            {event.venue_name || "Online"}
-                                        </p>
-                                        <p className="text-slate-400">
-                                            {event.venue_address || "Link available after registration"}
-                                        </p>
-                                    </div>
-
-
-                                    {/* Mini Map Placeholder */}
-                                    <div className="h-32 bg-slate-700/30 rounded-xl w-full relative overflow-hidden group cursor-pointer">
-                                        <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/80.2376,13.0674,13,0/300x200?access_token=PLACEHOLDER')] bg-cover opacity-50 grayscale group-hover:grayscale-0 transition-all" />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg shadow-lg text-xs font-bold flex items-center gap-1 group-hover:scale-110 transition-transform">
-                                                <MapPin size={12} className="text-red-500" /> View Map
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ORGANIZER CARD */}
-                                <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
-                                        {event.organizer_name?.[0] || 'C'}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="font-bold text-white text-sm">{event.organizer_name || "Community Host"}</p>
-                                        <p className="text-xs text-slate-400">Organized by {event.organizer_name?.split(' ')[0]}</p>
-                                    </div>
-
+                                    <button
+                                        onClick={handleFollow}
+                                        disabled={isLoadingFollow}
+                                        className={`w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 ${isFollowing
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/50 hover:bg-green-500/30'
+                                            : 'bg-slate-700/50 text-white hover:bg-slate-600 border border-slate-600/50'
+                                            }`}
+                                    >
+                                        {isLoadingFollow ? 'Loading...' : isFollowing ? '✓ Organizer Followed' : '+ Follow Organizer'}
+                                    </button>
                                 </div>
                             </div>
 
+                            {/* ORGANIZER CARD */}
+                            <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                                    {event.organizer_name?.[0] || 'C'}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-white text-sm">{event.organizer_name || "Community Host"}</p>
+                                    <p className="text-xs text-slate-400">Organized by {event.organizer_name?.split(' ')[0]}</p>
+                                </div>
+
+                            </div>
                             {/* TABS & CONTENT */}
-                            <div>
+                            <div className="mt-12">
                                 <div className="flex gap-8 border-b border-slate-800 mb-8 overflow-x-auto">
-                                    {['About', 'Agenda', 'Speakers'].map((tab) => (
+                                    {['About', ...(agenda.length > 0 ? ['Agenda'] : []), ...(event.raw_data?.speakers?.length > 0 ? ['Speakers'] : [])].map((tab) => (
                                         <button
                                             key={tab}
                                             onClick={() => setActiveTab(tab.toLowerCase())}
@@ -332,26 +349,27 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                             {agenda.map((item, i) => (
                                                 <div key={i} className="relative">
                                                     <div className="absolute -left-[39px] top-1 h-5 w-5 rounded-full bg-slate-900 border-4 border-slate-700" />
-                                                    <p className="text-sm font-bold text-primary-500 mb-1">{item.time}</p>
+                                                    <p className="text-sm font-bold text-primary-500 mb-1">{item.startTime} - {item.endTime}</p>
                                                     <h4 className="text-xl font-bold text-white mb-2">{item.title}</h4>
-                                                    <p className="text-slate-400 text-base">{item.desc}</p>
+                                                    <p className="text-slate-400 text-base">{item.description}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
 
+
+
                                     {activeTab === 'speakers' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {speakers.map((speaker, i) => (
-                                                <div key={i} className="flex items-center gap-5 p-5 bg-slate-800/40 rounded-2xl border border-white/5 hover:bg-slate-800/60 transition-colors">
-                                                    <img src={speaker.image} className="w-16 h-16 rounded-full object-cover ring-2 ring-slate-700" />
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {event.raw_data?.speakers?.map((speaker, i) => (
+                                                <div key={i} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex items-start gap-4">
+                                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
+                                                        {speaker.name?.[0] || 'S'}
+                                                    </div>
                                                     <div>
-                                                        <h4 className="text-lg font-bold text-white">{speaker.name}</h4>
-                                                        <p className="text-sm text-primary-400 mb-2">{speaker.role}</p>
-                                                        <div className="flex gap-3 text-slate-500">
-                                                            <Linkedin size={16} className="hover:text-white cursor-pointer" />
-                                                            <Twitter size={16} className="hover:text-white cursor-pointer" />
-                                                        </div>
+                                                        <h4 className="font-bold text-white">{speaker.name}</h4>
+                                                        <p className="text-primary-400 text-sm font-medium mb-1">{speaker.role} {speaker.company && `at ${speaker.company}`}</p>
+                                                        {speaker.bio && <p className="text-slate-400 text-xs line-clamp-2">{speaker.bio}</p>}
                                                     </div>
                                                 </div>
                                             ))}
@@ -373,7 +391,7 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                                 </div>
 
                                 <button
-                                    onClick={() => !isRegistered && onRegister(event)}
+                                    onClick={() => !isRegistered && setShowCheckout(true)}
                                     disabled={isRegistered}
                                     className={`px-10 py-4 rounded-xl font-bold text-lg flex items-center gap-3 transition-all transform hover:-translate-y-1 ${isRegistered
                                         ? 'bg-green-500/20 text-green-400 cursor-default'
@@ -392,6 +410,19 @@ export default function EventDetailModal({ event, isOpen, onClose, onRegister, i
                     </div>
                 </div>
             </div>
+
+
+            {/* Checkout Modal Overlay */}
+            <CheckoutModal
+                event={event}
+                isOpen={showCheckout}
+                onClose={() => setShowCheckout(false)}
+                onConfirm={async (payload) => {
+                    await onRegister(event, payload);
+                    setShowCheckout(false);
+                }}
+            />
+
         </div>
     );
 }

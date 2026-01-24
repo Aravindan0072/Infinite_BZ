@@ -208,12 +208,16 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
         setShowConfirmModal(true);
     };
 
-    const handleInternalRegistration = async (event) => {
+    const handleInternalRegistration = async (event, payload = null) => {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`http://localhost:8000/api/v1/events/${event.id}/register`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload || {})
             });
 
             let data;
@@ -235,13 +239,13 @@ export default function Dashboard({ user, onLogout, onNavigate }) {
                 alert('You are already registered for this event.');
             } else {
                 // Registration failed - show detailed error
-                const errorMessage = data.detail || data.message || `Server error (${res.status})`;
+                const errorMessage = typeof data.detail === 'object' ? JSON.stringify(data.detail) : (data.detail || data.message || `Server error (${res.status})`);
                 alert(`Registration failed: ${errorMessage}`);
                 console.error('Registration failed:', data);
             }
         } catch (err) {
             console.error('Registration error:', err);
-            alert('Registration failed. Please try again.');
+            alert('Registration failed. Please check your connection and try again.');
         }
     };
 
@@ -928,8 +932,8 @@ function ChatBot({ onApplyFilters }) {
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className={`w-14 h-14 rounded-full shadow-lg transition-all duration-300 ${isOpen
-                            ? 'bg-slate-700 hover:bg-slate-600'
-                            : 'bg-primary-500 hover:bg-primary-400'
+                        ? 'bg-slate-700 hover:bg-slate-600'
+                        : 'bg-primary-500 hover:bg-primary-400'
                         } flex items-center justify-center text-white`}
                 >
                     {isOpen ? (
@@ -965,8 +969,8 @@ function ChatBot({ onApplyFilters }) {
                             >
                                 <div
                                     className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${message.sender === 'user'
-                                            ? 'bg-primary-500 text-white'
-                                            : 'bg-slate-700 text-slate-200'
+                                        ? 'bg-primary-500 text-white'
+                                        : 'bg-slate-700 text-slate-200'
                                         }`}
                                 >
                                     <p>{message.text}</p>
@@ -1079,9 +1083,9 @@ function EventCard({ event, onRegister, isRegistered }) {
     };
 
     return (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-shadow hover:shadow-primary-500/10">
+        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-shadow hover:shadow-primary-500/10 flex flex-col h-full">
             {/* Header with Date */}
-            <div className="relative h-32 bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center">
+            <div className="relative h-32 bg-gradient-to-r from-primary-500 to-indigo-600 flex items-center justify-center shrink-0">
                 <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold">
                     {new Date(event.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </div>
@@ -1095,9 +1099,9 @@ function EventCard({ event, onRegister, isRegistered }) {
             </div>
 
             {/* Content */}
-            <div className="p-4">
+            <div className="p-4 flex flex-col flex-1">
                 {/* Event Title */}
-                <h3 className="text-lg font-bold text-white mb-3 line-clamp-2 overflow-hidden" style={{
+                <h3 className="text-lg font-bold text-white mb-3 line-clamp-2 overflow-hidden h-14" style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical'
@@ -1116,26 +1120,28 @@ function EventCard({ event, onRegister, isRegistered }) {
                 </div>
 
                 {/* Event Details */}
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2 mb-4 flex-1">
                     <div className="flex items-center gap-2 text-xs text-slate-400">
                         <span className="font-medium text-slate-300">By {event.organizer_name || "Unknown"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span>🕒 {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>📅 {new Date(event.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                        <span>•</span>
+                        <span>{new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     {!event.online_event && event.venue_name && (
                         <div className="flex items-start gap-2 text-xs text-slate-400">
                             <span>📍</span>
                             <div>
-                                <p className="font-medium text-slate-300">{event.venue_name}</p>
-                                <p className="text-slate-500">{event.venue_address || "Chennai, India"}</p>
+                                <p className="font-medium text-slate-300 line-clamp-1">{event.venue_name}</p>
+                                <p className="text-slate-500 line-clamp-1">{event.venue_address || "Chennai, India"}</p>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Source */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 mt-auto">
                     <div className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${event.raw_data?.source === 'InfiniteBZ' ? 'bg-primary-500 text-white' : 'bg-orange-500 text-white'}`}>
                             {event.raw_data?.source === 'InfiniteBZ' ? 'IB' : 'EB'}
@@ -1150,27 +1156,25 @@ function EventCard({ event, onRegister, isRegistered }) {
                 <button
                     onClick={handleClick}
                     disabled={registering || isRegistered}
-                    className={`w-full py-3 rounded-lg uppercase tracking-wider font-bold transition-all inline-flex items-center justify-center gap-2 ${isRegistered
-                            ? 'bg-green-500 text-white cursor-default'
-                            : registering
-                                ? 'bg-slate-700 text-slate-400 cursor-wait'
-                                : 'bg-primary-500 hover:bg-primary-400 text-white shadow-lg shadow-primary-500/20'
+                    className={`w-full py-3 rounded-lg uppercase tracking-wider font-bold transition-all inline-flex items-center justify-center gap-2 mt-auto ${isRegistered
+                        ? 'bg-green-500 text-white cursor-default'
+                        : registering
+                            ? 'bg-slate-700 text-slate-400 cursor-wait'
+                            : 'bg-primary-500 hover:bg-primary-400 text-white shadow-lg shadow-primary-500/20'
                         }`}
                 >
-<<<<<<< HEAD
-    { registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register' }
-=======
+
                     {event.raw_data?.source === 'InfiniteBZ'
                         ? (
                             isRegistered ? (
-                                <> <CheckCircle2 size={16} /> <span>Registered</span> </>
+                                <><CheckCircle2 size={16} /><span>Registered</span></>
                             ) : (
-                                <> <Eye size={16} /> <span>Register</span> </>
+                                <><Eye size={16} /><span>Register</span></>
                             )
                         )
                         : (registering ? 'Processing...' : isRegistered ? 'Registered' : 'Register')
                     }
->>>>>>> ae77a863a8ea9b6a765d0d000d0566c352a7b05d
+
                 </button >
             </div >
         </div >

@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFi
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import shutil
 import os
 
 from app.core.database import get_session
-from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate, Follow
+from app.models.schemas import Event, UserRegistration, EventListResponse, User, EventCreate, Follow, TicketClass, TicketClassCreate
 from app.services.scraper import scrape_events_playwright # Async import
 from app.auth import get_current_user
 from app.core.email_utils import generate_qr_code, send_event_ticket_email
@@ -80,35 +80,75 @@ async def create_event(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Allows authenticated users to create a new event.
+    Allows authenticated users to create a new event with multiple ticket classes.
     """
     # Generate unique internal ID
     custom_id = f"chk-{uuid.uuid4()}"
     
+    # Logic to handle Tickets
+    ticket_objects = []
+    total_capacity = 0
+    min_price = None
+    is_free_event = True
+    
+    # Process Tickets provided in payload
+    if event_data.tickets:
+        for t in event_data.tickets:
+            # Create TicketClass Object (but don't add to session until event is created or use relationship)
+            # Actually, we need event.id first. So we will add them later.
+            total_capacity += t.quantity
+            if t.price > 0:
+                is_free_event = False
+                if min_price is None or t.price < min_price:
+                    min_price = t.price
+            else:
+                 if min_price is None:
+                    min_price = 0
+    
+    # Override top-level fields based on tickets if tickets are present
+    final_capacity = total_capacity if event_data.tickets else event_data.capacity
+    final_is_free = is_free_event if event_data.tickets else event_data.is_free
+    final_price_str = str(min_price) if min_price is not None else event_data.price
+
     # Create Event Object
     # Extract Pro fields for raw_data storage
     raw_data_dump = {
         "source": "InfiniteBZ", 
         "created_by": current_user.email,
         "organizer_email": event_data.organizer_email,
-        "price": event_data.price,
-        "capacity": event_data.capacity,
+        "price": final_price_str,
+        "capacity": final_capacity,
         "agenda": event_data.agenda,
-        "speakers": event_data.speakers
+        "speakers": event_data.speakers,
+        "gallery_images": event_data.gallery_images,
+        # Store ticket summary in raw_data for quick FE access without joins
+        "tickets_meta": [t.dict() for t in event_data.tickets] if event_data.tickets else [] 
     }
     
     new_event = Event(
-        **event_data.dict(exclude={"organizer_email", "price", "organizer_name", "agenda", "speakers"}), # Exclude non-db columns
+        **event_data.dict(exclude={"organizer_email", "price", "organizer_name", "agenda", "speakers", "tickets", "gallery_images", "capacity", "is_free"}), # Exclude non-db columns
         eventbrite_id=custom_id,
         url=f"https://infinitebz.com/events/{custom_id}",
         organizer_name=event_data.organizer_name or current_user.full_name or "Community Member",
-        organizer_email=current_user.email,  # Set organizer email to current user
+        organizer_email=current_user.email,
+        capacity=final_capacity,
+        is_free=final_is_free,
         raw_data=raw_data_dump
     )
     
     session.add(new_event)
     await session.commit()
     await session.refresh(new_event)
+    
+    # Now create TicketClass records linked to this event
+    if event_data.tickets:
+        for t in event_data.tickets:
+            new_ticket = TicketClass(
+                event_id=new_event.id,
+                **t.dict()
+            )
+            session.add(new_ticket)
+        await session.commit()
     
     return new_event
 
@@ -388,7 +428,7 @@ async def list_events(
                 Event.organizer_name.ilike(search_term)
             )
         )
-
+        
     # Apply same filters to count_stmt
     if category and category.lower() != "all":
         keyword_map = {
@@ -485,9 +525,15 @@ from app.models.schemas import UserRegistration, User
 from app.services.registrar import auto_register_playwright
 from app.auth import get_current_user
 
+class RegistrationPayload(SQLModel):
+    tickets: List[Dict[str, Any]] = []
+    attendee: Dict[str, Any] = {}
+    total_amount: float = 0.0
+
 @router.post("/events/{event_id}/register")
 async def register_for_event(
     event_id: int, 
+    payload: RegistrationPayload,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
@@ -528,7 +574,8 @@ async def register_for_event(
         event_id=event_id,
         user_email=current_user.email,
         confirmation_id=confirmation_id,
-        status="SUCCESS"
+        status="SUCCESS",
+        raw_data=payload.dict()
     )
     session.add(new_reg)
     await session.commit()
@@ -569,7 +616,7 @@ async def register_for_event(
         "venue_name": event.venue_name,
         "organizer_name": event.organizer_name
     }
-    email_sent = await send_event_ticket_email(current_user.email, event_data, confirmation_id)
+    email_sent = await send_event_ticket_email(current_user.email, event_data, confirmation_id, user_name=current_user.full_name)
 
     message = "Registration verified and saved!"
     if email_sent:
@@ -579,7 +626,7 @@ async def register_for_event(
 
     return {
         "status": "SUCCESS",
-        "message": message,
+        "message": "message",
         "confirmation_id": confirmation_id,
         "email_status": email_status
     }
@@ -947,10 +994,7 @@ async def get_event_qr_code(
         raise HTTPException(status_code=404, detail="Event not found")
 
     # Generate QR code data EXACTLY matching the PDF format sent to email
-    qr_data = f"""Ticket ID: {registration.confirmation_id}
-Event: {event.title}
-User: {current_user.email}
-Valid: {event.start_time.strftime('%Y-%m-%d %H:%M %p')}"""
+    qr_data = f"Ticket ID: {registration.confirmation_id}\nEvent: {event.title}\nUser: {current_user.email}\nValid: {event.start_time.strftime('%Y-%m-%d %H:%M %p')}"
     qr_base64 = generate_qr_code(qr_data)
 
     return {
@@ -1105,4 +1149,78 @@ async def get_user_activities(
     return {
         "activities": activities,
         "total": len(activities)
+    }
+
+# --- 10. MY REGISTRATIONS ENDPOINTS ---
+
+@router.get("/user/registrations")
+async def get_user_registrations(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get all events the user has registered for.
+    """
+    from sqlalchemy.orm import selectinload
+    stmt = select(UserRegistration).where(
+        UserRegistration.user_email == current_user.email
+    ).options(selectinload(UserRegistration.event))
+    
+    result = await session.execute(stmt)
+    registrations = result.scalars().all()
+    
+    events_list = []
+    for reg in registrations:
+        if reg.event:
+            events_list.append({
+                "id": reg.event.id,
+                "title": reg.event.title,
+                "start_time": reg.event.start_time,
+                "end_time": reg.event.end_time,
+                "venue_name": reg.event.venue_name,
+                "venue_address": reg.event.venue_address,
+                "image_url": reg.event.image_url,
+                "is_free": reg.event.is_free,
+                "online_event": reg.event.online_event,
+                "registration_date": reg.registered_at,
+                "status": reg.status, # SUCCESS, PENDING, etc.
+                "confirmation_id": reg.confirmation_id
+            })
+            
+    return {"registrations": events_list}
+
+@router.get("/user/registrations/{event_id}/qr")
+async def get_registration_qr(
+    event_id: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get QR code for a specific registration.
+    """
+    from sqlalchemy.orm import selectinload
+    stmt = select(UserRegistration).where(
+        UserRegistration.event_id == event_id,
+        UserRegistration.user_email == current_user.email,
+        UserRegistration.status == "SUCCESS"
+    ).options(selectinload(UserRegistration.event))
+    
+    result = await session.execute(stmt)
+    registration = result.scalars().first()
+    
+    if not registration:
+        raise HTTPException(status_code=404, detail="Registration not found")
+        
+    # Generate QR Data
+    event = registration.event
+    qr_data = f"Ticket ID: {registration.confirmation_id}\\nEvent: {event.title}\\nUser: {current_user.email}\\nValid: {event.start_time}"
+    
+    # Generate QR Image (using existing utility if available or inline)
+    # We imported generate_qr_code from app.core.email_utils earlier
+    qr_base64 = generate_qr_code(qr_data)
+    
+    return {
+        "qr_code": qr_base64,
+        "event_title": event.title,
+        "ticket_id": registration.confirmation_id
     }

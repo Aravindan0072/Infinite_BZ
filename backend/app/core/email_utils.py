@@ -80,7 +80,6 @@ async def send_reset_email(email: EmailStr, otp: str):
         print(f"EXTREME ERROR: Failed to send email via SMTP: {e}")
         return False
 
-<<<<<<< HEAD
 async def send_ticket_email(email: EmailStr, name: str, event_title: str, ticket_path: str):
     """
     Sends the PDF Ticket via Real SMTP using fastapi-mail.
@@ -122,7 +121,6 @@ async def send_ticket_email(email: EmailStr, name: str, event_title: str, ticket
     except Exception as e:
         print(f"EXTREME ERROR: Failed to send ticket email via SMTP: {e}")
         return False
-=======
 def generate_qr_code(data: str) -> str:
     """
     Generate QR code for given data and return as base64 string.
@@ -136,7 +134,7 @@ def generate_qr_code(data: str) -> str:
     buffer.seek(0)
     return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str, unique_ticket_id: str) -> BytesIO:
+def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str, unique_ticket_id: str, user_name: str = None) -> BytesIO:
     """
     Generate a beautifully styled vertical PDF ticket with InfiniteBZ branding and professional design.
     """
@@ -182,11 +180,11 @@ def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str,
     # Event Name
     c.setFillColorRGB(0.08, 0.55, 0.67)  # Primary color label
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(30, y_pos, "Event:")
+    c.drawString(30, y_pos, "Event Name:")
     c.setFillColorRGB(0.1, 0.1, 0.1)  # Dark text
     c.setFont("Helvetica", 11)
     event_title = event_data.get('title', 'N/A')
-    c.drawString(90, y_pos, event_title[:25])
+    c.drawString(120, y_pos, event_title[:25])
     y_pos -= 25
 
     # Date & Time
@@ -222,10 +220,11 @@ def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str,
     # Attendee
     c.setFillColorRGB(0.08, 0.55, 0.67)  # Primary color label
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(30, y_pos, "Attendee:")
+    c.drawString(30, y_pos, "Attendee Name:")
     c.setFillColorRGB(0.1, 0.1, 0.1)  # Dark text
     c.setFont("Helvetica", 11)
-    c.drawString(100, y_pos, user_email[:25])
+    display_name = user_name if user_name else user_email
+    c.drawString(130, y_pos, display_name[:30])
     y_pos -= 40
 
     # QR Code section
@@ -265,7 +264,7 @@ def generate_event_ticket_pdf(event_data: dict, qr_base64: str, user_email: str,
     buffer.seek(0)
     return buffer
 
-async def send_event_ticket_email(email: EmailStr, event_data: dict, confirmation_id: str = None):
+async def send_event_ticket_email(email: EmailStr, event_data: dict, confirmation_id: str = None, user_name: str = None):
     """
     Generate QR code and ticket PDF, then send email with attachments.
     """
@@ -288,7 +287,7 @@ async def send_event_ticket_email(email: EmailStr, event_data: dict, confirmatio
 
         # Generate ticket PDF with confirmation ID (use the passed confirmation_id or unique_ticket_id as fallback)
         ticket_id_to_use = confirmation_id or unique_ticket_id
-        pdf_buffer = generate_event_ticket_pdf(event_data, qr_base64, email, ticket_id_to_use)
+        pdf_buffer = generate_event_ticket_pdf(event_data, qr_base64, email, ticket_id_to_use, user_name)
 
         # Save PDF to temporary file
         import tempfile
@@ -345,4 +344,4 @@ async def send_event_ticket_email(email: EmailStr, event_data: dict, confirmatio
                 os.unlink(temp_file_path)
             except Exception as e:
                 print(f"Warning: Could not delete temp file {temp_file_path}: {e}")
->>>>>>> ae77a863a8ea9b6a765d0d000d0566c352a7b05d
+

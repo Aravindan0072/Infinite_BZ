@@ -48,3 +48,6 @@ backend/debug_output.txt
 backend/*.log
 frontend/vite.config.js.timestamp*
 chrome_profile/
+backend/tickets/
+backend/uploads/
+backend/debug_email_identity.txt

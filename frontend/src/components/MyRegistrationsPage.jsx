@@ -184,31 +184,28 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => setActiveTab('going')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition ${
-              activeTab === 'going'
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition ${activeTab === 'going'
                 ? 'bg-primary-500 text-slate-900'
                 : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'
-            }`}
+              }`}
           >
             ✓ Going
           </button>
           <button
             onClick={() => setActiveTab('saved')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition ${
-              activeTab === 'saved'
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition ${activeTab === 'saved'
                 ? 'bg-primary-500 text-slate-900'
                 : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'
-            }`}
+              }`}
           >
             📌 Saved
           </button>
           <button
             onClick={() => setActiveTab('past')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition ${
-              activeTab === 'past'
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition ${activeTab === 'past'
                 ? 'bg-primary-500 text-slate-900'
                 : 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50'
-            }`}
+              }`}
           >
             ↩ Past
           </button>
@@ -273,12 +270,12 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
                       />
                     )}
                     <div className="text-center relative z-10 px-2">
-                      <p className="text-white text-sm font-bold overflow-hidden text-ellipsis" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{event.title}</p>
+                      <p className="text-white text-sm font-bold overflow-hidden text-ellipsis" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{event.title}</p>
                     </div>
                   </div>
 
                   <div className="p-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 overflow-hidden text-ellipsis" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 overflow-hidden text-ellipsis" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                       {event.title}
                     </h3>
 
@@ -307,13 +304,12 @@ export default function MyRegistrationsPage({ onNavigate, user }) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1 text-gray-700 font-medium">
                         <Users size={14} />
-                        <span className="text-xs">Confirmed</span>
+                        <span className="text-xs">{event.ticket_type || 'Confirmed'}</span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                        event.is_free
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${event.is_free
                           ? 'bg-green-100 text-green-700'
                           : 'bg-orange-100 text-orange-700'
-                      }`}>
+                        }`}>
                         {event.is_free ? 'Free' : 'Paid'}
                       </span>
                     </div>

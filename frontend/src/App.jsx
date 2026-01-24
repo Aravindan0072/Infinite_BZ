@@ -182,7 +182,7 @@ export default function App() {
                 return newEvent;
               } else {
                 const data = await res.json();
-                throw new Error(data.message || "Unknown error");
+                throw new Error(data.detail || data.message || "Unknown error");
               }
             } catch (err) {
               console.error("Create event error", err);
@@ -211,6 +211,7 @@ export default function App() {
             setCurrentView(view);
           }}
         />
+      )}
       {currentView === 'my-registrations' && (
         <MyRegistrationsPage />
 
